@@ -5,81 +5,49 @@ import { LogIn, KeyRound, Mail, AlertCircle } from 'lucide-react';
 import loginBg from '../assets/login-bg.png';
 import { logActivity } from '../lib/logger';
 
+import { useUser } from '../UserContext';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    checkExistingSession();
-  }, []);
-
-  const checkExistingSession = async () => {
-    try {
-      const user = await account.get();
-      if (user) {
-        // Fetch user role
-        const { documents } = await databases.listDocuments(
-          db.id,
-          db.collections.profiles,
-          [Query.equal("userId", user.$id)]
-        );
-
-        if (documents.length > 0) {
-          const profile = documents[0];
-          if (profile.role === 'admin') navigate('/admin');
-          else if (profile.role === 'supply_dept') navigate('/supply-dept');
-          else navigate('/supplier');
-        }
-      }
-    } catch (err) {
-      // No session, stay on login page
-    }
-  };
+  const { checkSession, profile } = useUser();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLocalLoading(true);
     setError(null);
 
     try {
-      // Check if session exists and delete it if we want to force a new login
-      try {
-        await account.deleteSession('current');
-      } catch (e) {
-        // No session to delete
-      }
+      // Clear any old session
+      try { await account.deleteSession('current'); } catch (e) {}
 
       // Appwrite Login
       await account.createEmailPasswordSession(email, password);
-      const user = await account.get();
-
-      // Fetch user role
-      const { documents } = await databases.listDocuments(
-        db.id,
-        db.collections.profiles,
-        [Query.equal("userId", user.$id)]
-      );
-
-      if (documents.length === 0) throw new Error("Profile not found");
-      const profile = documents[0];
-
+      
+      // CRITICAL: Refresh global context before navigating
+      await checkSession();
+      
       // LOG ACTIVITY
       await logActivity('Login', `User logged in successfully`);
 
-      // Navigate based on role
+      // The redirection is now handled by the logic below or by navigation
+    } catch (err) {
+      setError(err.message);
+      setLocalLoading(false);
+    }
+  };
+
+  // Handle redirection once profile is loaded after login
+  useEffect(() => {
+    if (profile) {
       if (profile.role === 'admin') navigate('/admin');
       else if (profile.role === 'supply_dept') navigate('/supply-dept');
       else navigate('/supplier');
-      
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [profile, navigate]);
 
   return (
     <div className="login-container">
@@ -139,8 +107,8 @@ export default function LoginPage() {
               <a href="#" className="forgot-password">Forgot password?</a>
             </div>
 
-            <button type="submit" className="btn-primary login-btn" disabled={loading}>
-              {loading ? 'Authenticating...' : (
+            <button type="submit" className="btn-primary login-btn" disabled={localLoading}>
+              {localLoading ? 'Authenticating...' : (
                 <>
                   <LogIn size={20} />
                   <span>Login to Dashboard</span>
