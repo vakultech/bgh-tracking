@@ -109,14 +109,22 @@ export default function ChatBox() {
       console.log("Active Contacts:", activeContacts.map(c => c.userId));
 
       unreads.forEach(m => {
-        const contact = activeContacts.find(c => c.userId === m.senderId);
+        // Try exact match or fuzzy match
+        const contact = activeContacts.find(c => 
+          c.userId === m.senderId || 
+          c.$id === m.senderId ||
+          c.fullName === m.senderName
+        );
+        
         if (contact) {
-          counts[m.senderId] = (counts[m.senderId] || 0) + 1;
+          counts[contact.userId] = (counts[contact.userId] || 0) + 1;
         } else {
-          console.log("Stray message from sender:", m.senderId);
+          console.log("Stray message ID:", m.senderId, "from", m.senderName);
           strayMessages.push(m.$id);
         }
       });
+
+      alert(`Found ${unreads.length} unread messages. Synced with ${Object.keys(counts).length} contacts.`);
 
       // CLEANUP STRAYS IMMEDIATELY
       if (strayMessages.length > 0) {
@@ -147,15 +155,17 @@ export default function ChatBox() {
   };
 
   const clearConversation = async () => {
+    alert("Delete process started for: " + (activeThread?.fullName || "Unknown"));
+    
     if (!activeThread) return;
     if (!window.confirm("Permanently delete all messages in this conversation? This cannot be undone.")) return;
 
     try {
       setLoading(true);
-      console.log("Delete triggered by:", profile?.role, myId);
+      alert("Current User Role: " + (profile?.role || "No Role Found"));
 
       if (profile?.role !== 'admin') {
-        alert("Action Denied: Only users with 'admin' role can clear conversations.");
+        alert("Action Denied: You must be an 'admin' to delete messages. Your role: " + profile?.role);
         setLoading(false);
         return;
       }
