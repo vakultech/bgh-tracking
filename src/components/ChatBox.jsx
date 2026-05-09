@@ -93,21 +93,53 @@ export default function ChatBox() {
       const { documents: profiles } = await databases.listDocuments(
         db.id, db.collections.profiles, [Query.limit(100)]
       );
-      setContacts(profiles.filter(p => p.userId !== myId));
+      const activeContacts = profiles.filter(p => p.userId !== myId);
+      setContacts(activeContacts);
 
-      // Fetch unread counts
+      // Fetch ALL unread messages for me
       const { documents: unreads } = await databases.listDocuments(
         db.id, db.collections.messages, 
         [Query.equal('recipientId', myId), Query.equal('isRead', false)]
       );
       
       const counts = {};
+      const strayMessages = [];
+      
       unreads.forEach(m => {
-        counts[m.senderId] = (counts[m.senderId] || 0) + 1;
+        const contact = activeContacts.find(c => c.userId === m.senderId);
+        if (contact) {
+          counts[m.senderId] = (counts[m.senderId] || 0) + 1;
+        } else {
+          // It's a stray notification from someone not in our list
+          strayMessages.push(m.$id);
+        }
       });
+
+      // CLEANUP STRAYS IMMEDIATELY
+      if (strayMessages.length > 0) {
+        await Promise.all(strayMessages.map(id => 
+          databases.updateDocument(db.id, db.collections.messages, id, { isRead: true })
+        ));
+      }
+
       setUnreadMap(counts);
     } catch (err) {
       console.error("Messenger Init Error:", err);
+    }
+  };
+
+  const markAllEverywhereAsRead = async () => {
+    try {
+      const { documents: unreads } = await databases.listDocuments(
+        db.id, db.collections.messages, 
+        [Query.equal('recipientId', myId), Query.equal('isRead', false)]
+      );
+      await Promise.all(unreads.map(m => 
+        databases.updateDocument(db.id, db.collections.messages, m.$id, { isRead: true })
+      ));
+      setUnreadMap({});
+    } catch (err) {
+      console.error("Total Clear Error:", err);
     }
   };
 
@@ -240,7 +272,10 @@ export default function ChatBox() {
             {/* SIDEBAR: THREADS */}
             <div className={`messenger-sidebar ${activeThread ? 'hide-mobile' : ''}`}>
               <div className="messenger-sidebar-header">
-                <h3>Chats</h3>
+                <div>
+                  <h3>Chats</h3>
+                  <button className="clear-all-link" onClick={markAllEverywhereAsRead}>Mark all as read</button>
+                </div>
                 <button onClick={() => setIsOpen(false)} className="close-btn-mobile"><X size={20}/></button>
               </div>
               
@@ -373,7 +408,13 @@ export default function ChatBox() {
 
         .messenger-sidebar { width: 320px; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
         .messenger-sidebar-header { padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-        .messenger-sidebar-header h3 { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
+        .messenger-sidebar-header h3 { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin: 0; }
+        .clear-all-link { 
+          background: none; border: none; padding: 0; color: var(--accent); 
+          font-size: 0.75rem; font-weight: 700; text-decoration: underline; 
+          cursor: pointer; margin-top: 2px; display: block;
+        }
+        .clear-all-link:hover { color: var(--primary); }
         
         .messenger-search { 
           margin: 0 1.5rem 1.5rem; background: #f1f5f9; border-radius: 12px;
