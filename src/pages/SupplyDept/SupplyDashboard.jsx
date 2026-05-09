@@ -172,7 +172,7 @@ export default function SupplyDashboard() {
           <div className="header-actions">
             <button className="btn-primary" onClick={() => setShowModal(true)}>
               <Plus size={18} />
-              <span>New Procurement</span>
+              <span>New Project</span>
             </button>
           </div>
         </div>
@@ -313,7 +313,7 @@ export default function SupplyDashboard() {
               className="modal-content glass modern-form"
             >
               <div className="modal-header">
-                <h3>New Procurement Project</h3>
+              <h3>New Project</h3>
                 <button className="close-btn" onClick={() => setShowModal(false)}><X size={20} /></button>
               </div>
 
@@ -325,7 +325,7 @@ export default function SupplyDashboard() {
                   </div>
                   <div className="input-group floating">
                     <input required placeholder=" " value={formData.project_name} onChange={e => setFormData({...formData, project_name: e.target.value})} />
-                    <label>Title of Procurement</label>
+                    <label>Project Title</label>
                   </div>
                 </div>
 

@@ -311,7 +311,7 @@ export default function ContractsPage() {
             </div>
           ) : filteredContracts.length > 0 ? (
             <>
-              {/* SECTION 1: NEW PROCUREMENT */}
+              {/* SECTION 1: NEW PROJECT */}
               <div className="project-section">
                 <div className="section-title-bar">
                   <div className="title-icon new"><FileText size={18} /></div>
@@ -538,7 +538,7 @@ export default function ContractsPage() {
                   </div>
                   <div className="input-group floating">
                     <input required placeholder=" " value={formData.project_name} onChange={e => setFormData({...formData, project_name: e.target.value})} />
-                    <label>Title of Procurement Project</label>
+                    <label>Project Title</label>
                   </div>
                   
                   <div className="form-row">
