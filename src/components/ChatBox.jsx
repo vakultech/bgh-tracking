@@ -319,10 +319,12 @@ export default function ChatBox() {
   );
 
   const totalUnread = useMemo(() => {
-    return Object.keys(unreadMap).reduce((sum, contactId) => {
-      const isKnown = contacts.some(c => c.userId === contactId);
-      return isKnown ? sum + Number(unreadMap[contactId]) : sum;
-    }, 0);
+    let sum = 0;
+    contacts.forEach(c => {
+      const count = (Number(unreadMap[c.userId]) || 0) + (Number(unreadMap[c.$id]) || 0);
+      sum += count;
+    });
+    return sum;
   }, [unreadMap, contacts]);
 
   return (
@@ -540,11 +542,11 @@ export default function ChatBox() {
         .thread-name-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; width: 100%; }
         .thread-name-text { font-weight: 700; color: var(--primary); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 0.5rem; }
         .unread-dot { 
-          background: #0ea5e9; color: white; font-size: 0.75rem; font-weight: 800; 
+          background: #ef4444; color: white; font-size: 0.75rem; font-weight: 800; 
           min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; 
           display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 4px 10px rgba(14, 165, 233, 0.4);
-          flex-shrink: 0;
+          box-shadow: 0 4px 10px rgba(239, 68, 68, 0.4);
+          flex-shrink: 0; z-index: 10; position: relative;
         }
         .header-count { font-size: 1rem; color: var(--accent); opacity: 0.8; font-weight: 600; }
         .thread-role { font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
