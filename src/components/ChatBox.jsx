@@ -50,13 +50,18 @@ export default function ChatBox() {
       `databases.${db.id}.collections.${db.collections.messages}.documents`,
       (response) => {
         const msg = response.payload;
-        alert("Realtime Event: " + response.events[0]);
+        const myId = profile?.userId || currentUser?.$id;
+        const myAltId = profile?.$id || currentUser?.$id;
+        
+        // Debug Alert
+        alert(`NEW MESSAGE!\nFrom: ${msg.senderId}\nTo: ${msg.recipientId}\nMy IDs: ${myId}, ${myAltId}`);
         
         // Handle New Messages
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-          const isForMe = msg.recipientId === myId;
-          const isFromMe = msg.senderId === myId;
-          const currentTalkingTo = activeThreadRef.current?.userId;
+          const isForMe = msg.recipientId === myId || msg.recipientId === myAltId;
+          const isFromMe = msg.senderId === myId || msg.senderId === myAltId;
+          const activeContact = activeThreadRef.current;
+          const currentTalkingTo = activeContact?.userId || activeContact?.$id;
 
           if (isForMe) {
             if (isOpen && currentTalkingTo === msg.senderId) {
@@ -156,17 +161,18 @@ export default function ChatBox() {
   };
 
   const clearConversation = async () => {
-    alert("Delete process started for: " + (activeThread?.fullName || "Unknown"));
+    const userRole = profile?.role || 'user';
+    alert("Delete triggered by: " + userRole);
     
     if (!activeThread) return;
     if (!window.confirm("Permanently delete all messages in this conversation? This cannot be undone.")) return;
 
     try {
       setLoading(true);
-      alert("Current User Role: " + (profile?.role || "No Role Found"));
 
-      if (profile?.role !== 'admin') {
-        alert("Action Denied: You must be an 'admin' to delete messages. Your role: " + profile?.role);
+      // Allow both admin and supply_dept to delete
+      if (userRole !== 'admin' && userRole !== 'supply_dept') {
+        alert("Action Denied: You must be an 'admin' or 'supply_dept' to delete. Your role: " + userRole);
         setLoading(false);
         return;
       }
