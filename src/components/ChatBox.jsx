@@ -200,7 +200,12 @@ export default function ChatBox() {
     c.role?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalUnread = Object.values(unreadMap).reduce((a, b) => a + b, 0);
+  const totalUnread = useMemo(() => {
+    return Object.keys(unreadMap).reduce((sum, contactId) => {
+      const isKnown = contacts.some(c => c.userId === contactId);
+      return isKnown ? sum + Number(unreadMap[contactId]) : sum;
+    }, 0);
+  }, [unreadMap, contacts]);
 
   return (
     <div className="messenger-system">
@@ -212,7 +217,15 @@ export default function ChatBox() {
         onClick={() => setIsOpen(!isOpen)}
       >
         <MessageSquare size={24} />
-        {totalUnread > 0 && <span className="unread-total">{totalUnread}</span>}
+        {totalUnread > 0 && (
+          <motion.span 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="unread-total"
+          >
+            {totalUnread}
+          </motion.span>
+        )}
       </motion.button>
 
       {/* 2. MAIN MESSENGER WINDOW */}
