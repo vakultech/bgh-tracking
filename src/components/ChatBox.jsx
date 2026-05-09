@@ -384,9 +384,11 @@ export default function ChatBox() {
                       </div>
                     </div>
                     <div className="chat-actions">
-                      <button className="icon-btn" onClick={clearConversation} title="Clear Chat History">
-                        <X size={20}/>
-                      </button>
+                      {profile?.role === 'admin' && (
+                        <button className="delete-chat-btn" onClick={clearConversation}>
+                          Delete Message
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -510,6 +512,13 @@ export default function ChatBox() {
         .chat-header-user { flex: 1; display: flex; align-items: center; gap: 0.75rem; }
         .chat-header-user h4 { font-weight: 800; color: var(--primary); }
         .chat-header-user .status { font-size: 0.75rem; color: #22c55e; font-weight: 600; }
+        
+        .delete-chat-btn { 
+          background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; 
+          padding: 0.5rem 0.8rem; border-radius: 8px; font-size: 0.75rem; 
+          font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .delete-chat-btn:hover { background: #fee2e2; color: #dc2626; transform: translateY(-1px); }
 
         .chat-messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
         .message-row { display: flex; width: 100%; }
