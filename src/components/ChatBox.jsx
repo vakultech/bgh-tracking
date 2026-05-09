@@ -603,7 +603,7 @@ export default function ChatBox() {
         .back-btn { display: none; }
         @media (max-width: 768px) {
           .messenger-window { 
-            width: 100vw; height: 100vh; 
+            width: 100vw; height: 100dvh; 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             border-radius: 0; z-index: 9999; display: flex; flex-direction: row;
           }
@@ -613,8 +613,11 @@ export default function ChatBox() {
           .messenger-chat { 
             width: 100%; position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
             z-index: 100; display: none; background: white; flex-direction: column;
+            height: 100dvh;
           }
           .messenger-chat.show-mobile { display: flex !important; }
+          
+          .chat-input { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
           
           .back-btn { display: flex; border: none; background: transparent; color: var(--primary); align-items: center; justify-content: center; padding: 0.5rem; }
           .close-btn-mobile { border: none; background: transparent; display: flex; }
