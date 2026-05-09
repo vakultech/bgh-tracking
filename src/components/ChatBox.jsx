@@ -25,9 +25,10 @@ export default function ChatBox() {
       (response) => {
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
           const msg = response.payload;
+          const myId = profile?.userId || currentUser?.$id;
           
           // Only notify if the message is for me
-          if (msg.recipientId === currentUser?.$id) {
+          if (msg.recipientId === myId) {
             // If chat is closed OR I'm talking to someone else
             if (!isOpen || selectedContact?.userId !== msg.senderId) {
               setUnreadSenders(prev => [...new Set([...prev, msg.senderId])]);
@@ -44,7 +45,7 @@ export default function ChatBox() {
           }
 
           // If I am the sender, add to my own messages list if conversation is open
-          if (msg.senderId === currentUser?.$id && selectedContact?.userId === msg.recipientId) {
+          if (msg.senderId === myId && selectedContact?.userId === msg.recipientId) {
             setMessages((prev) => [...prev, msg]);
           }
         }
@@ -81,13 +82,14 @@ export default function ChatBox() {
   const fetchConversation = async (contact) => {
     setLoading(true);
     try {
+      const myId = profile?.userId || currentUser?.$id;
       const { documents } = await databases.listDocuments(
         db.id, 
         db.collections.messages,
         [
           Query.or([
-            Query.and([Query.equal('senderId', currentUser.$id), Query.equal('recipientId', contact.userId)]),
-            Query.and([Query.equal('senderId', contact.userId), Query.equal('recipientId', currentUser.$id)])
+            Query.and([Query.equal('senderId', myId), Query.equal('recipientId', contact.userId)]),
+            Query.and([Query.equal('senderId', contact.userId), Query.equal('recipientId', myId)])
           ]),
           Query.orderAsc('$createdAt'),
           Query.limit(50)
@@ -121,13 +123,16 @@ export default function ChatBox() {
     setNewMessage('');
 
     try {
+      const myId = profile?.userId || currentUser?.$id;
+      if (!myId) throw new Error("User ID not found");
+
       await databases.createDocument(
         db.id,
         db.collections.messages,
         ID.unique(),
         {
-          senderId: currentUser.$id,
-          recipientId: selectedContact.userId || selectedContact.$id,
+          senderId: myId,
+          recipientId: selectedContact.userId,
           senderName: profile?.fullName || currentUser.email,
           text: messageText,
           senderRole: profile?.role || 'user'
