@@ -17,7 +17,7 @@ import {
   Building2,
   Key
 } from 'lucide-react';
-import { databases, db, ID, Query } from '../../lib/appwrite';
+import { databases, db, ID, Query, client } from '../../lib/appwrite';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logActivity } from '../../lib/logger';
 
@@ -42,6 +42,24 @@ export default function AccountManagement() {
   useEffect(() => {
     fetchUsers();
     fetchSuppliers();
+
+    // REALTIME SUBSCRIPTION
+    const unsubscribe = client.subscribe(
+      `databases.${db.id}.collections.${db.collections.profiles}.documents`,
+      (response) => {
+        if (response.events.includes('databases.*.collections.*.documents.*.update')) {
+          const updatedUser = response.payload;
+          setUsers((prev) => 
+            prev.map((u) => (u.$id === updatedUser.$id ? updatedUser : u))
+          );
+        }
+        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
+          setUsers((prev) => [response.payload, ...prev]);
+        }
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   const fetchUsers = async () => {
