@@ -69,13 +69,45 @@ export default function ChatBox() {
       );
       if (profiles.length > 0) setProfile(profiles[0]);
 
-      // Fetch all other users for the contact list
+      // Fetch all other users
       const { documents: allProfiles } = await databases.listDocuments(
         db.id, db.collections.profiles, [Query.limit(100)]
       );
       setContacts(allProfiles.filter(p => p.userId !== user.$id));
+
+      // Initial check for unread messages across all contacts
+      const { documents: unreadMessages } = await databases.listDocuments(
+        db.id,
+        db.collections.messages,
+        [Query.equal('recipientId', user.$id), Query.equal('isRead', false)]
+      );
+      const uniqueUnreadSenders = [...new Set(unreadMessages.map(m => m.senderId))];
+      setUnreadSenders(uniqueUnreadSenders);
+      if (uniqueUnreadSenders.length > 0) setHasNewMessage(true);
+
     } catch (err) {
       console.error("Chat error:", err);
+    }
+  };
+
+  const markMessagesAsRead = async (contactId) => {
+    const myId = profile?.userId || currentUser?.$id;
+    try {
+      const { documents: unread } = await databases.listDocuments(
+        db.id,
+        db.collections.messages,
+        [
+          Query.equal('recipientId', myId),
+          Query.equal('senderId', contactId),
+          Query.equal('isRead', false)
+        ]
+      );
+
+      await Promise.all(unread.map(msg => 
+        databases.updateDocument(db.id, db.collections.messages, msg.$id, { isRead: true })
+      ));
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
     }
   };
 
@@ -96,6 +128,7 @@ export default function ChatBox() {
         ]
       );
       setMessages(documents);
+      await markMessagesAsRead(contact.userId);
     } catch (err) {
       console.error("Fetch conversation error:", err);
     } finally {
@@ -105,7 +138,6 @@ export default function ChatBox() {
 
   const handleSelectContact = (contact) => {
     setSelectedContact(contact);
-    // Remove from unread list
     setUnreadSenders(prev => prev.filter(id => id !== contact.userId));
     if (unreadSenders.length <= 1) setHasNewMessage(false);
     fetchConversation(contact);
@@ -135,12 +167,13 @@ export default function ChatBox() {
           recipientId: selectedContact.userId,
           senderName: profile?.fullName || currentUser.email,
           text: messageText,
-          senderRole: profile?.role || 'user'
+          senderRole: profile?.role || 'user',
+          isRead: false
         }
       );
     } catch (err) {
       console.error("Failed to send message:", err);
-      alert("Failed to send message. Make sure you added 'recipientId' to the messages collection attributes!");
+      alert("Failed to send message. Make sure you added 'isRead' (Boolean) to the messages collection attributes!");
     }
   };
 
