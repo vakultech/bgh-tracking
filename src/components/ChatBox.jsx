@@ -50,6 +50,7 @@ export default function ChatBox() {
       `databases.${db.id}.collections.${db.collections.messages}.documents`,
       (response) => {
         const msg = response.payload;
+        alert("Realtime Event: " + response.events[0]);
         
         // Handle New Messages
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
@@ -209,9 +210,9 @@ export default function ChatBox() {
     }
   };
 
-  const fetchMessages = async (contactId) => {
+  const fetchMessages = async (contactId, silent = false) => {
     if (!contactId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const { documents } = await databases.listDocuments(
         db.id, db.collections.messages,
@@ -225,11 +226,11 @@ export default function ChatBox() {
         ]
       );
       setMessages(documents);
-      scrollToBottom("auto");
+      if (!silent) scrollToBottom("auto");
     } catch (err) {
       console.error("Fetch Messages Error:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -238,8 +239,8 @@ export default function ChatBox() {
     if (!activeThread || !isOpen) return;
     
     const interval = setInterval(() => {
-      fetchMessages(activeThread.userId);
-    }, 15000); // Check every 15 seconds as a safety fallback
+      fetchMessages(activeThread.userId, true);
+    }, 10000); // Check every 10 seconds silently
 
     return () => clearInterval(interval);
   }, [activeThread, isOpen]);
@@ -410,11 +411,9 @@ export default function ChatBox() {
                       </div>
                     </div>
                     <div className="chat-actions">
-                      {profile?.role === 'admin' && (
-                        <button className="delete-chat-btn" onClick={clearConversation}>
-                          Delete Message
-                        </button>
-                      )}
+                      <button className="delete-chat-btn" onClick={clearConversation}>
+                        Delete Message
+                      </button>
                     </div>
                   </div>
 
