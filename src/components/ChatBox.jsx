@@ -10,11 +10,12 @@ export default function ChatBox() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [unreadSenders, setUnreadSenders] = useState({});
-  const [hasNewMessage, setHasNewMessage] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const hasUnread = Object.keys(unreadSenders).length > 0;
 
   useEffect(() => {
     fetchInitialData();
@@ -34,7 +35,6 @@ export default function ChatBox() {
                 ...prev,
                 [msg.senderId]: (prev[msg.senderId] || 0) + 1
               }));
-              setHasNewMessage(true);
               try { new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play(); } catch(e) {}
             }
 
@@ -54,7 +54,6 @@ export default function ChatBox() {
             setUnreadSenders(prev => {
               const newCounts = { ...prev };
               delete newCounts[msg.senderId];
-              if (Object.keys(newCounts).length === 0) setHasNewMessage(false);
               return newCounts;
             });
           }
@@ -96,7 +95,6 @@ export default function ChatBox() {
       }, {});
       
       setUnreadSenders(counts);
-      if (Object.keys(counts).length > 0) setHasNewMessage(true);
 
     } catch (err) {
       console.error("Chat error:", err);
@@ -154,7 +152,6 @@ export default function ChatBox() {
     setUnreadSenders(prev => {
       const newCounts = { ...prev };
       delete newCounts[contact.userId];
-      if (Object.keys(newCounts).length === 0) setHasNewMessage(false);
       return newCounts;
     });
     fetchConversation(contact);
@@ -206,11 +203,10 @@ export default function ChatBox() {
           className="chat-toggle-btn"
           onClick={() => {
             setIsOpen(true);
-            setHasNewMessage(false);
           }}
         >
           <MessageSquare size={24} />
-          {hasNewMessage && <span className="notification-badge-pulse"></span>}
+          {hasUnread && <span className="notification-badge-pulse"></span>}
         </motion.button>
       )}
 
