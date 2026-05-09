@@ -160,20 +160,24 @@ export default function ChatBox() {
         ]
       );
 
-      await Promise.all(documents.map(m => 
-        databases.updateDocument(db.id, db.collections.messages, m.$id, { isRead: true }) // Mark as read first
-      ));
-      
-      // We can't actually 'delete' easily without a function, but we can mark as deleted or just delete
-      await Promise.all(documents.map(m => 
-        databases.deleteDocument(db.id, db.collections.messages, m.$id)
-      ));
-
+      // Force clear locally first for instant feedback
       setMessages([]);
-      alert("Conversation cleared.");
+
+      // Attempt to delete each document individually to avoid batch failure on permissions
+      for (const m of documents) {
+        try {
+          await databases.deleteDocument(db.id, db.collections.messages, m.$id);
+        } catch (e) {
+          // Likely a permission error (can't delete someone else's message)
+          // We just skip it and continue
+          console.warn(`Could not delete message ${m.$id}:`, e.message);
+        }
+      }
+
+      alert("Chat cleared locally. (Note: Only messages you have permission to delete were removed from the server).");
     } catch (err) {
       console.error("Clear Error:", err);
-      alert("Failed to clear messages: " + err.message);
+      alert("Failed to clear chat: " + err.message);
     } finally {
       setLoading(false);
     }
