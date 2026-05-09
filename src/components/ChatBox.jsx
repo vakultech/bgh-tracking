@@ -121,6 +121,8 @@ export default function ChatBox() {
 
   const markMessagesAsRead = async (contactId) => {
     const myId = profile?.userId || currentUser?.$id;
+    if (!myId) return;
+
     try {
       const { documents: unread } = await databases.listDocuments(
         db.id,
@@ -131,6 +133,15 @@ export default function ChatBox() {
           Query.equal('isRead', false)
         ]
       );
+
+      if (unread.length === 0) return;
+
+      // Update locally immediately to avoid UI lag
+      setUnreadSenders(prev => {
+        const newCounts = { ...prev };
+        delete newCounts[contactId];
+        return newCounts;
+      });
 
       await Promise.all(unread.map(msg => 
         databases.updateDocument(db.id, db.collections.messages, msg.$id, { isRead: true })
@@ -157,7 +168,7 @@ export default function ChatBox() {
         ]
       );
       setMessages(documents);
-      await markMessagesAsRead(contact.userId);
+      markMessagesAsRead(contact.userId); // Don't await, let it run in background
     } catch (err) {
       console.error("Fetch conversation error:", err);
     } finally {
@@ -167,10 +178,11 @@ export default function ChatBox() {
 
   const handleSelectContact = (contact) => {
     setSelectedContact(contact);
+    // Force clear locally
     setUnreadSenders(prev => {
-      const newCounts = { ...prev };
-      delete newCounts[contact.userId];
-      return newCounts;
+      const next = { ...prev };
+      delete next[contact.userId];
+      return next;
     });
     fetchConversation(contact);
   };
