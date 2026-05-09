@@ -126,30 +126,67 @@ export default function AdminLogs() {
 
       <style jsx>{`
         .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 2rem; padding: 2rem 0; margin-top: 2rem; border-top: 1px solid var(--border); }
+        
+        @media (max-width: 640px) {
+          .pagination-bar { flex-direction: column; gap: 1rem; }
+          .page-info { order: -1; }
+          .page-btn { width: 100%; text-align: center; }
+        }
+
         .page-btn { padding: 0.6rem 1.5rem; background: white; border: 1px solid var(--border); border-radius: 10px; font-size: 0.85rem; font-weight: 700; color: var(--primary); cursor: pointer; transition: all 0.2s; }
         .page-btn:hover:not(:disabled) { border-color: var(--primary-light); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .page-info { font-size: 0.9rem; font-weight: 800; color: var(--text-muted); }
 
         .logs-timeline { padding: 2rem; }
+        
+        @media (max-width: 640px) {
+          .logs-timeline { padding: 1.25rem; }
+        }
+
         .timeline-items { display: flex; flex-direction: column; }
         .timeline-item { display: flex; gap: 1.5rem; }
+        
+        @media (max-width: 640px) {
+          .timeline-item { gap: 1rem; }
+        }
+
         .timeline-marker { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; position: relative; }
         .marker-circle { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 3px solid var(--accent-glow); z-index: 1; margin-top: 0.25rem; }
         .marker-line { width: 2px; flex: 1; background: var(--border); position: absolute; top: 12px; bottom: -20px; }
         .timeline-item:last-child .marker-line { display: none; }
         
-        .timeline-content { padding-bottom: 2.5rem; flex: 1; }
-        .log-main { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 1rem; }
+        .timeline-content { padding-bottom: 2.5rem; flex: 1; min-width: 0; }
+        .log-main { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 1rem; flex-wrap: wrap; }
         .log-user { font-weight: 700; color: var(--primary); }
         .log-action { color: var(--text-muted); }
         .log-details { background: white; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem; color: #475569; margin: 0.75rem 0; border: 1px solid var(--border); overflow-x: auto; }
-        .log-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; }
+        .log-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; flex-wrap: wrap; }
         .log-role-tag { padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
         .log-role-tag.ADMIN { background: #fee2e2; color: #ef4444; }
         .log-role-tag.SUPPLIER { background: #dcfce7; color: #16a34a; }
         .log-role-tag.SUPPLY_DEPT { background: #dbeafe; color: #2563eb; }
         .separator { color: var(--border); }
+
+        .filter-card { 
+          display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; 
+          margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+          .filter-card { flex-direction: column; align-items: stretch; padding: 1.25rem; gap: 1rem; }
+          .search-wrapper { width: 100%; }
+          .filter-group { margin-left: 0 !important; width: 100%; }
+          .filter-group select { width: 100% !important; }
+        }
+
+        .search-wrapper { 
+          flex: 1; display: flex; align-items: center; gap: 1rem; 
+          background: var(--bg); padding: 0.75rem 1.25rem; border-radius: 12px;
+          border: 1px solid var(--border);
+        }
+        .search-wrapper input { border: none; background: transparent; width: 100%; font-weight: 600; }
+        .search-wrapper input:focus { outline: none; }
       `}</style>
     </DashboardLayout>
   );

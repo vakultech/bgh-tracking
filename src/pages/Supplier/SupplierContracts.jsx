@@ -535,6 +535,11 @@ export default function SupplierContracts() {
 
       <style jsx>{`
         .contracts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 2rem; margin-top: 2rem; }
+        
+        @media (max-width: 768px) {
+          .contracts-grid { grid-template-columns: 1fr; gap: 1rem; }
+        }
+
         .contract-card { display: flex; flex-direction: column; height: 100%; border: 1px solid rgba(0,0,0,0.05); }
         
         .contract-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
@@ -544,6 +549,7 @@ export default function SupplierContracts() {
         .status-badge.in-transit { background: #eff6ff; color: #1e40af; }
         
         .project-tag { font-size: 0.65rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.05em; }
+        .contract-body { flex: 1; }
         .contract-body h3 { font-size: 1.25rem; font-weight: 700; color: var(--primary); margin-bottom: 1.5rem; line-height: 1.3; }
         
         .delivery-info { background: var(--bg); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; }
@@ -552,9 +558,9 @@ export default function SupplierContracts() {
 
         .shipping-status-box { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; background: #f8fafc; border-radius: 12px; border: 1px solid var(--border); }
         .status-item { display: flex; align-items: center; gap: 1rem; }
-        .status-item div { display: flex; flex-direction: column; }
+        .status-item div { display: flex; flex-direction: column; min-width: 0; }
         .status-item label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
-        .status-item p, .view-link { font-size: 0.85rem; font-weight: 600; color: var(--primary); text-decoration: none; }
+        .status-item p, .view-link { font-size: 0.85rem; font-weight: 600; color: var(--primary); text-decoration: none; word-break: break-all; }
         .view-link { color: var(--primary-light); text-decoration: underline; }
         .view-link:hover { color: var(--primary); }
         .highlight-arrival { background: #f0fdf4; padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(22, 163, 74, 0.2); }
@@ -568,15 +574,27 @@ export default function SupplierContracts() {
         .search-icon { color: var(--text-muted); }
 
         .pagination-controls { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin-top: 2rem; padding: 1rem; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
+        
+        @media (max-width: 640px) {
+          .pagination-controls { flex-direction: column; gap: 1rem; }
+          .page-info { order: -1; }
+          .page-btn { width: 100%; }
+        }
+
         .page-btn { padding: 0.5rem 1.25rem; background: white; border: 1px solid var(--border); border-radius: 8px; font-size: 0.8rem; font-weight: 700; color: var(--primary); cursor: pointer; transition: all 0.2s; }
         .page-btn:hover:not(:disabled) { border-color: var(--primary-light); color: var(--primary-light); transform: translateY(-1px); }
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .page-info { font-size: 0.85rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.05em; }
 
         .contracts-sections { display: flex; flex-direction: column; gap: 4rem; margin-top: 2rem; }
+        
+        @media (max-width: 768px) {
+          .contracts-sections { gap: 2rem; }
+        }
+
         .project-section { display: flex; flex-direction: column; gap: 1.5rem; }
         .section-title-bar { display: flex; align-items: center; gap: 1rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border); }
-        .title-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; }
+        .title-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
         .title-icon.new { background: var(--primary); }
         .title-icon.ongoing { background: var(--warning); }
         .title-icon.completed { background: var(--success); }
@@ -611,23 +629,43 @@ export default function SupplierContracts() {
           backdrop-filter: blur(8px); display: flex; align-items: center; 
           justify-content: center; z-index: 1000; padding: 2rem;
         }
+        
+        @media (max-width: 640px) {
+          .modal-overlay { padding: 0; }
+        }
+
         .modal-content.modern-form { 
           width: 100%; max-width: 580px; 
           background: white; border-radius: 24px; 
           box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
           overflow: hidden; display: flex; flex-direction: column;
         }
+
+        @media (max-width: 640px) {
+          .modal-content.modern-form { height: 100vh; max-height: 100vh; border-radius: 0; }
+        }
+
         .modal-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .modal-header h3 { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
         .close-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
         .scrollable-form { max-height: 80vh; overflow-y: auto; padding: 2rem; }
+        
+        @media (max-width: 640px) {
+          .scrollable-form { max-height: calc(100vh - 140px); padding: 1.25rem; }
+        }
+
         .form-section { background: var(--bg); padding: 1.5rem; border-radius: 16px; margin-bottom: 1.5rem; border: 1px solid var(--border); }
         .section-title { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
         .step-num { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; }
         .section-title h4 { font-weight: 700; color: var(--primary); }
 
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+
+        @media (max-width: 640px) {
+          .form-row { grid-template-columns: 1fr; gap: 0; }
+        }
+
         .input-group.floating { position: relative; margin-bottom: 1.25rem; }
         .input-group.floating input { height: 56px; padding: 22px 15px 6px; width: 100%; border: 1px solid var(--border); border-radius: 12px; font-weight: 600; font-size: 0.95rem; }
         .input-group.floating label { position: absolute; left: 15px; top: 18px; transition: all 0.2s; pointer-events: none; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; }
@@ -639,6 +677,12 @@ export default function SupplierContracts() {
         .input-group select { height: 48px; border-radius: 12px; border: 1px solid var(--border); padding: 0 1rem; font-weight: 600; background: white; width: 100%; }
 
         .modal-footer { padding: 1.5rem 2rem; background: var(--bg); border-top: 1px solid var(--border); display: flex; gap: 1rem; justify-content: flex-end; }
+        
+        @media (max-width: 640px) {
+          .modal-footer { padding: 1rem 1.25rem; flex-direction: column-reverse; }
+          .modal-footer button { width: 100%; height: 48px; }
+        }
+
         .btn-ghost { padding: 0.75rem 1.5rem; font-weight: 700; color: var(--text-muted); border: none; background: transparent; cursor: pointer; }
         .btn-primary { padding: 0.75rem 2rem; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2); border: none; cursor: pointer; background: var(--primary); color: white; }
       `}</style>

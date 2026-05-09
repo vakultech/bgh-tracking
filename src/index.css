@@ -303,3 +303,111 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Global Mobile Responsiveness Utilities */
+@media (max-width: 768px) {
+  :root {
+    --radius: 12px;
+  }
+  
+  body {
+    font-size: 14px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .section-header p {
+    font-size: 0.95rem;
+  }
+
+  .card {
+    padding: 1.25rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .stat-card {
+    padding: 1.25rem;
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+  }
+
+  /* Filter Card Mobile */
+  .filter-card {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 1rem;
+  }
+
+  .filter-card .search-wrapper {
+    width: 100%;
+  }
+
+  .filter-card .filter-group {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  .filter-card select {
+    width: 100% !important;
+  }
+
+  /* Table Mobile fallback - use horizontal scroll */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
+
+  /* Modal Mobile */
+  .modal-overlay {
+    padding: 0;
+  }
+
+  .modal-content.modern-form {
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
+
+  .scrollable-form {
+    max-height: calc(100vh - 140px) !important;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Visibility Utilities */
+.mobile-only { display: none; }
+@media (max-width: 768px) {
+  .mobile-only { display: block; }
+  .desktop-only { display: none !important; }
+}

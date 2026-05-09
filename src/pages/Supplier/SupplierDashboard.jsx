@@ -333,7 +333,7 @@ export default function SupplierDashboard() {
         .dashboard-content { padding-bottom: 2rem; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .stat-card { display: flex; align-items: center; gap: 1.25rem; padding: 1.5rem; }
-        .stat-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+        .stat-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .stat-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
         .stat-value { font-size: 1.75rem; font-weight: 800; color: var(--primary); margin: 0.25rem 0; }
         .stat-detail { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
@@ -341,6 +341,10 @@ export default function SupplierDashboard() {
         .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
         .full-width { grid-column: 1 / -1; }
         
+        @media (max-width: 1024px) {
+          .dashboard-grid { grid-template-columns: 1fr; }
+        }
+
         .analytics-card { min-height: 350px; }
         .card-header { margin-bottom: 1.5rem; }
         .card-header h3 { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
@@ -356,8 +360,15 @@ export default function SupplierDashboard() {
           background: var(--bg); border-radius: 12px; transition: all 0.2s;
           border: 1px solid var(--border);
         }
+
+        @media (max-width: 640px) {
+          .transaction-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+          .tx-meta { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+          .tx-arrow { display: none; }
+        }
+
         .transaction-item:hover { transform: translateX(3px); background: white; box-shadow: var(--shadow-sm); }
-        .tx-icon { width: 32px; height: 32px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary); }
+        .tx-icon { width: 32px; height: 32px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--primary); flex-shrink: 0; }
         .tx-info { flex: 1; }
         .tx-action { font-size: 0.85rem; font-weight: 700; color: var(--primary); }
         .tx-details { font-size: 0.75rem; color: var(--text-muted); }
@@ -371,6 +382,13 @@ export default function SupplierDashboard() {
           margin-top: 0.5rem; position: sticky; bottom: 0; background: white;
           z-index: 10;
         }
+
+        @media (max-width: 640px) {
+          .pagination-footer { flex-direction: column; gap: 1rem; }
+          .page-indicator { order: -1; }
+          .pagination-btn { width: 100%; justify-content: center; }
+        }
+
         .pagination-btn { 
           display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem;
           border-radius: 10px; border: 1px solid var(--border); background: white;

@@ -234,12 +234,16 @@ export default function AdminDashboard() {
       <style jsx>{`
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
         .stat-card { display: flex; align-items: center; gap: 1.25rem; padding: 1.5rem; }
-        .stat-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+        .stat-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .stat-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
         .stat-value { font-size: 1.75rem; font-weight: 800; color: var(--primary); }
 
         .dashboard-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; }
         
+        @media (max-width: 1024px) {
+          .dashboard-grid { grid-template-columns: 1fr; }
+        }
+
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
         .header-title h3 { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
         .header-title p { font-size: 0.85rem; color: var(--text-muted); }
@@ -247,6 +251,13 @@ export default function AdminDashboard() {
 
         .compliance-list { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
         .compliance-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
+        
+        @media (max-width: 640px) {
+          .compliance-item { flex-direction: column; align-items: flex-start; }
+          .alert-meta { width: 100%; margin-top: 0.5rem; }
+          .days-left { width: 100%; text-align: center; display: block; }
+        }
+
         .alert-info { flex: 1; }
         .supplier-name { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
         .permit-type { font-size: 0.8rem; color: var(--text-muted); }

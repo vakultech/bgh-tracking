@@ -310,16 +310,22 @@ export default function SuppliersPage() {
         .search-wrapper input:focus { box-shadow: none; outline: none; }
 
         .suppliers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 2rem; }
-        .supplier-card { border: 1px solid rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        @media (max-width: 768px) {
+          .suppliers-grid { grid-template-columns: 1fr; gap: 1rem; }
+        }
+
+        .supplier-card { border: 1px solid rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); height: 100%; display: flex; flex-direction: column; }
         .supplier-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); border-color: var(--primary-light); }
         
         .supplier-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
         .supplier-main { display: flex; gap: 1rem; align-items: center; }
-        .supplier-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; }
-        .supplier-main h3 { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+        .supplier-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; flex-shrink: 0; }
+        .supplier-main h3 { font-size: 1.1rem; font-weight: 700; color: var(--primary); line-height: 1.2; }
         
         .supplier-details { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
         .detail-item { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted); }
+        .detail-item span { word-break: break-all; }
         
         .permit-status-box { background: var(--bg); padding: 1rem; border-radius: 12px; margin-bottom: 1rem; }
         .permit-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-bottom: 0.5rem; }
@@ -337,24 +343,43 @@ export default function SuppliersPage() {
           backdrop-filter: blur(8px); display: flex; align-items: center; 
           justify-content: center; z-index: 1000; padding: 2rem;
         }
+        
+        @media (max-width: 640px) {
+          .modal-overlay { padding: 0; }
+        }
+
         .modal-content.modern-form { 
           width: 100%; max-width: 600px; 
           background: white; border-radius: 24px; 
           box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
           overflow: hidden; display: flex; flex-direction: column;
         }
+
+        @media (max-width: 640px) {
+          .modal-content.modern-form { height: 100vh; max-height: 100vh; border-radius: 0; }
+        }
+
         .modal-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .modal-header h3 { font-size: 1.25rem; font-weight: 800; color: var(--primary); }
         .close-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .close-btn:hover { background: white; color: var(--danger); border-color: var(--danger); }
 
         .scrollable-form { max-height: 80vh; overflow-y: auto; padding: 2rem; }
+        
+        @media (max-width: 640px) {
+          .scrollable-form { max-height: calc(100vh - 140px); padding: 1.25rem; }
+        }
+
         .form-section { background: var(--bg); padding: 1.5rem; border-radius: 16px; margin-bottom: 1.5rem; border: 1px solid var(--border); }
         .section-title { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
         .step-num { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; }
         .section-title h4 { font-weight: 700; color: var(--primary); }
 
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        
+        @media (max-width: 640px) {
+          .form-row { grid-template-columns: 1fr; gap: 0; }
+        }
 
         .input-group.floating { position: relative; margin-bottom: 1.25rem; }
         .input-group.floating input, .input-group.floating textarea { height: 56px; padding: 22px 15px 6px; width: 100%; border: 1px solid var(--border); border-radius: 12px; font-weight: 600; font-size: 0.95rem; }
@@ -373,6 +398,12 @@ export default function SuppliersPage() {
         .file-input-wrapper label.uploaded { border-color: var(--success); color: var(--success); background: #f0fdf4; }
         
         .modal-footer { padding: 1.5rem 2rem; background: var(--bg); border-top: 1px solid var(--border); display: flex; gap: 1rem; justify-content: flex-end; }
+        
+        @media (max-width: 640px) {
+          .modal-footer { padding: 1rem 1.25rem; flex-direction: column-reverse; }
+          .modal-footer button { width: 100%; height: 48px; }
+        }
+
         .btn-ghost { padding: 0.75rem 1.5rem; font-weight: 700; color: var(--text-muted); }
         .btn-primary { padding: 0.75rem 2rem; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2); }
       `}</style>

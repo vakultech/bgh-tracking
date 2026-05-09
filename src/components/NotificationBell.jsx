@@ -122,11 +122,21 @@ export default function NotificationBell() {
           padding: 0; overflow: hidden; border: 1px solid var(--border);
           box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
+
+        @media (max-width: 640px) {
+          .notif-dropdown { position: fixed; top: 80px; left: 1rem; right: 1rem; width: auto; max-width: none; }
+        }
+
         .notif-header { padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
         .notif-header h4 { font-weight: 800; color: var(--primary); font-size: 0.95rem; }
         .count-badge { background: var(--primary); color: white; padding: 0.2rem 0.5rem; border-radius: 20px; font-size: 0.7rem; font-weight: 700; }
 
         .notif-list { max-height: 400px; overflow-y: auto; }
+        
+        @media (max-width: 640px) {
+          .notif-list { max-height: 60vh; }
+        }
+
         .notif-item { 
           padding: 1rem; display: flex; gap: 1rem; border-bottom: 1px solid var(--border);
           cursor: pointer; transition: all 0.2s; position: relative;
@@ -136,7 +146,7 @@ export default function NotificationBell() {
         .unread-indicator { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; background: var(--primary); border-radius: 50%; }
 
         .notif-icon { 
-          width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; shrink: 0;
+          width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
         .notif-icon.info { background: #eff6ff; color: #1e40af; }
         .notif-icon.success { background: #ecfdf5; color: #065f46; }
