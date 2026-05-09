@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, X, User, Minus } from 'lucide-react';
+import { MessageSquare, Send, X, User, Minus, ChevronRight } from 'lucide-react';
 import { databases, db, ID, Query, client, account } from '../lib/appwrite';
 import { motion, AnimatePresence } from 'framer-motion';
 
