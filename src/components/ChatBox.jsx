@@ -14,8 +14,13 @@ export default function ChatBox() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const selectedContactRef = useRef(null);
 
   const hasUnread = Object.keys(unreadSenders).length > 0;
+
+  useEffect(() => {
+    selectedContactRef.current = selectedContact;
+  }, [selectedContact]);
 
   useEffect(() => {
     fetchInitialData();
@@ -26,12 +31,13 @@ export default function ChatBox() {
       (response) => {
         const msg = response.payload;
         const myId = profile?.userId || currentUser?.$id;
+        const activeContact = selectedContactRef.current;
         if (!myId) return;
 
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
           // If message is for me
           if (msg.recipientId === myId) {
-            const isTalkingToSender = selectedContact?.userId === msg.senderId;
+            const isTalkingToSender = activeContact?.userId === msg.senderId;
             
             if (!isOpen || !isTalkingToSender) {
               setUnreadSenders(prev => ({
@@ -52,7 +58,7 @@ export default function ChatBox() {
           }
 
           // If message is from me
-          if (msg.senderId === myId && selectedContact?.userId === msg.recipientId) {
+          if (msg.senderId === myId && activeContact?.userId === msg.recipientId) {
             setMessages((prev) => {
               if (prev.some(m => m.$id === msg.$id)) return prev;
               return [...prev, msg];
@@ -74,7 +80,7 @@ export default function ChatBox() {
     );
 
     return () => unsubscribe();
-  }, [selectedContact, currentUser, profile, isOpen]);
+  }, [currentUser, profile, isOpen]);
 
   useEffect(() => {
     // Scroll to bottom whenever messages or view state changes
