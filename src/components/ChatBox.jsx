@@ -105,12 +105,15 @@ export default function ChatBox() {
       const counts = {};
       const strayMessages = [];
       
+      console.log("Unread Check:", unreads.length, "messages found");
+      console.log("Active Contacts:", activeContacts.map(c => c.userId));
+
       unreads.forEach(m => {
         const contact = activeContacts.find(c => c.userId === m.senderId);
         if (contact) {
           counts[m.senderId] = (counts[m.senderId] || 0) + 1;
         } else {
-          // It's a stray notification from someone not in our list
+          console.log("Stray message from sender:", m.senderId);
           strayMessages.push(m.$id);
         }
       });
@@ -149,6 +152,14 @@ export default function ChatBox() {
 
     try {
       setLoading(true);
+      console.log("Delete triggered by:", profile?.role, myId);
+
+      if (profile?.role !== 'admin') {
+        alert("Action Denied: Only users with 'admin' role can clear conversations.");
+        setLoading(false);
+        return;
+      }
+
       const { documents } = await databases.listDocuments(
         db.id, db.collections.messages,
         [
@@ -160,24 +171,29 @@ export default function ChatBox() {
         ]
       );
 
-      // Force clear locally first for instant feedback
+      if (documents.length === 0) {
+        alert("No messages found to delete.");
+        setLoading(false);
+        return;
+      }
+
+      // Force clear locally first
       setMessages([]);
 
-      // Attempt to delete each document individually to avoid batch failure on permissions
+      let deletedCount = 0;
       for (const m of documents) {
         try {
           await databases.deleteDocument(db.id, db.collections.messages, m.$id);
+          deletedCount++;
         } catch (e) {
-          // Likely a permission error (can't delete someone else's message)
-          // We just skip it and continue
-          console.warn(`Could not delete message ${m.$id}:`, e.message);
+          console.warn(`Permission Denied for message ${m.$id}`);
         }
       }
 
-      alert("Chat cleared locally. (Note: Only messages you have permission to delete were removed from the server).");
+      alert(`Cleanup Finished: ${deletedCount} of ${documents.length} messages removed from server. (Others were skipped due to Appwrite permissions).`);
     } catch (err) {
       console.error("Clear Error:", err);
-      alert("Failed to clear chat: " + err.message);
+      alert("System Error: " + err.message);
     } finally {
       setLoading(false);
     }
