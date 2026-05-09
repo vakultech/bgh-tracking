@@ -124,9 +124,18 @@ export default function ContractsPage() {
   });
 
 
+  const [fetchError, setFetchError] = useState(null);
+
   const fetchData = async () => {
     try {
       setLoading(true);
+      setFetchError(null);
+
+      // Safety check for collection IDs
+      if (!db.collections.contracts || !db.collections.suppliers) {
+        throw new Error("Database Configuration Missing: Contracts or Suppliers collection ID is not set.");
+      }
+
       const [contractsRes, suppliersRes] = await Promise.all([
         databases.listDocuments(db.id, db.collections.contracts, [Query.orderDesc('$createdAt')]),
         databases.listDocuments(db.id, db.collections.suppliers, [Query.equal('status', 'active')])
@@ -136,6 +145,7 @@ export default function ContractsPage() {
       setSuppliers(suppliersRes.documents || []);
     } catch (err) {
       console.error("Fetch error:", err);
+      setFetchError(err.message);
     } finally {
       setLoading(false);
     }
@@ -289,6 +299,13 @@ export default function ContractsPage() {
             <div className="loading-state">
               <div className="spinner"></div>
               <p>Syncing contracts...</p>
+            </div>
+          ) : fetchError ? (
+            <div className="error-state card">
+              <AlertCircle size={48} color="var(--danger)" />
+              <h3>Database Connection Issue</h3>
+              <p>{fetchError}</p>
+              <button className="btn-primary" onClick={fetchData} style={{ marginTop: '1rem' }}>Retry Sync</button>
             </div>
           ) : filteredContracts.length > 0 ? (
             <>
