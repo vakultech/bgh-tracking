@@ -26,11 +26,14 @@ export default function ChatBox() {
       (response) => {
         const msg = response.payload;
         const myId = profile?.userId || currentUser?.$id;
+        if (!myId) return;
 
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-          // Only notify if the message is for me
+          // If message is for me
           if (msg.recipientId === myId) {
-            if (!isOpen || selectedContact?.userId !== msg.senderId) {
+            const isTalkingToSender = selectedContact?.userId === msg.senderId;
+            
+            if (!isOpen || !isTalkingToSender) {
               setUnreadSenders(prev => ({
                 ...prev,
                 [msg.senderId]: (prev[msg.senderId] || 0) + 1
@@ -38,13 +41,22 @@ export default function ChatBox() {
               try { new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play(); } catch(e) {}
             }
 
-            if (selectedContact?.userId === msg.senderId) {
-              setMessages((prev) => [...prev, msg]);
+            if (isTalkingToSender) {
+              setMessages((prev) => {
+                if (prev.some(m => m.$id === msg.$id)) return prev;
+                return [...prev, msg];
+              });
+              // Auto-mark as read if window is open
+              databases.updateDocument(db.id, db.collections.messages, msg.$id, { isRead: true });
             }
           }
 
+          // If message is from me
           if (msg.senderId === myId && selectedContact?.userId === msg.recipientId) {
-            setMessages((prev) => [...prev, msg]);
+            setMessages((prev) => {
+              if (prev.some(m => m.$id === msg.$id)) return prev;
+              return [...prev, msg];
+            });
           }
         }
 
@@ -62,7 +74,7 @@ export default function ChatBox() {
     );
 
     return () => unsubscribe();
-  }, [selectedContact, currentUser, isOpen]);
+  }, [selectedContact, currentUser, profile, isOpen]);
 
   useEffect(() => {
     scrollToBottom();
@@ -168,10 +180,23 @@ export default function ChatBox() {
     const messageText = newMessage.trim();
     setNewMessage('');
 
-    try {
-      const myId = profile?.userId || currentUser?.$id;
-      if (!myId) throw new Error("User ID not found");
+    const myId = profile?.userId || currentUser?.$id;
+    if (!myId) return;
 
+    // Optimistic local update
+    const tempMsg = {
+      $id: `temp-${Date.now()}`,
+      senderId: myId,
+      recipientId: selectedContact.userId,
+      senderName: profile?.fullName || currentUser.email,
+      text: messageText,
+      senderRole: profile?.role || 'user',
+      isRead: false,
+      $createdAt: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, tempMsg]);
+
+    try {
       await databases.createDocument(
         db.id,
         db.collections.messages,
@@ -187,6 +212,8 @@ export default function ChatBox() {
       );
     } catch (err) {
       console.error("Failed to send message:", err);
+      // Remove the optimistic message on error
+      setMessages(prev => prev.filter(m => m.$id !== tempMsg.$id));
       alert("Failed to send message. Make sure you added 'isRead' (Boolean) to the messages collection attributes!");
     }
   };
