@@ -75,13 +75,21 @@ export const sendAlert = async ({ recipientId, email, title, message, type = 'in
     );
 
     // 2. Send Email if address provided
-    if (email) {
-      await sendEmailNotification(email, title, message);
+    if (email && email.includes('@')) {
+      try {
+        await sendEmailNotification(email, title, message);
+      } catch (e) {
+        console.warn(`[ALERT] Email failed but in-app notification was sent to ${recipientId}`);
+      }
     }
 
     return true;
   } catch (err) {
     console.error("Alert Error:", err);
+    // Log failure to system logs for admin to see
+    try {
+      await logActivity('Notification Error', `Failed to send alert to ${email || recipientId}: ${err.message}`);
+    } catch (e) {}
     return false;
   }
 };
@@ -99,9 +107,7 @@ export const notifyStakeholders = async (contract, title, message, type = 'info'
     );
     
     if (internalStaff.length === 0) {
-      console.warn("⚠️ [NOTIFY] No internal staff found. Check Appwrite Permissions for 'profiles' collection! Ensure 'Any Authenticated User' has READ access.");
-    } else {
-      console.log(`[NOTIFY] Found ${internalStaff.length} internal staff members to notify.`);
+      await logActivity('Notification Warning', 'No internal staff found to notify. Check profiles collection permissions.');
     }
 
     // 2. Get the specific Supplier's profile
@@ -119,44 +125,38 @@ export const notifyStakeholders = async (contract, title, message, type = 'info'
       );
       if (supplierProfiles.length > 0) {
         supplierUserId = supplierProfiles[0].userId;
-      } else {
-        console.warn(`⚠️ [NOTIFY] No profile found for supplier email ${supplierEmail}. Check if they have logged in once.`);
       }
     }
 
     // 3. Send to Internal Staff
-    for (const staff of internalStaff) {
-      try {
-        await sendAlert({
-          recipientId: staff.userId,
-          email: staff.email,
-          title,
-          message,
-          type
-        });
-      } catch (e) {
-        console.error(`❌ [NOTIFY] Failed to notify staff ${staff.name}:`, e.message);
-      }
-    }
+    const notifications = internalStaff.map(staff => 
+      sendAlert({
+        recipientId: staff.userId,
+        email: staff.email,
+        title,
+        message,
+        type
+      })
+    );
 
     // 4. Send to Supplier (if found)
     if (supplierUserId) {
-      try {
-        await sendAlert({
+      notifications.push(
+        sendAlert({
           recipientId: supplierUserId,
           email: supplierEmail,
           title,
           message,
           type
-        });
-      } catch (e) {
-        console.error(`❌ [NOTIFY] Failed to notify supplier:`, e.message);
-      }
+        })
+      );
     }
 
+    await Promise.allSettled(notifications);
     return true;
   } catch (err) {
     console.error("Stakeholder Notification Error:", err);
+    await logActivity('Critical Notification Error', err.message);
     return false;
   }
 };
