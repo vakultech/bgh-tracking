@@ -78,11 +78,13 @@ export default function ChatBox() {
 
   useEffect(() => {
     // Scroll to bottom whenever messages or view state changes
-    if (messages.length > 0) {
-      const timer = setTimeout(() => scrollToBottom(isOpen ? "auto" : "smooth"), 100);
+    if (messages.length > 0 && !loading) {
+      const timer = setTimeout(() => {
+        scrollToBottom(messages.length <= 10 ? "auto" : "smooth");
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [messages, isOpen, selectedContact]);
+  }, [messages, isOpen, selectedContact, loading]);
 
   const fetchInitialData = async () => {
     try {
