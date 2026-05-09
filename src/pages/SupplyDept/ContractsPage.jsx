@@ -650,6 +650,7 @@ export default function ContractsPage() {
           margin: 0 -1.5rem 1.5rem -1.5rem; 
           padding: 1rem 1.5rem;
           box-shadow: inset 0 -2px 10px rgba(0,0,0,0.1);
+          text-align: center;
         }
         .project-title-row h3 { 
           font-size: 1.15rem; 
