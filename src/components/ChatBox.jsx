@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ChatBox() {
   const [isOpen, setIsOpen] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [selectedContact, setSelectedContact] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
@@ -13,29 +15,33 @@ export default function ChatBox() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    fetchUserAndMessages();
+    fetchInitialData();
 
     // Subscribe to messages
     const unsubscribe = client.subscribe(
       `databases.${db.id}.collections.${db.collections.messages}.documents`,
       (response) => {
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-          setMessages((prev) => [...prev, response.payload]);
-          if (!isOpen) {
-            // Play sound or show badge logic here
+          const msg = response.payload;
+          // Only add if it belongs to the current open conversation
+          if (
+            (msg.senderId === currentUser?.$id && msg.recipientId === selectedContact?.userId) ||
+            (msg.senderId === selectedContact?.userId && msg.recipientId === currentUser?.$id)
+          ) {
+            setMessages((prev) => [...prev, msg]);
           }
         }
       }
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [selectedContact, currentUser]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isOpen]);
+  }, [messages, isOpen, selectedContact]);
 
-  const fetchUserAndMessages = async () => {
+  const fetchInitialData = async () => {
     try {
       const user = await account.get();
       setCurrentUser(user);
@@ -45,15 +51,42 @@ export default function ChatBox() {
       );
       if (profiles.length > 0) setProfile(profiles[0]);
 
-      const { documents } = await databases.listDocuments(
-        db.id, 
-        db.collections.messages,
-        [Query.orderAsc('$createdAt'), Query.limit(50)]
+      // Fetch all other users for the contact list
+      const { documents: allProfiles } = await databases.listDocuments(
+        db.id, db.collections.profiles, [Query.limit(100)]
       );
-      setMessages(documents);
+      setContacts(allProfiles.filter(p => p.userId !== user.$id));
     } catch (err) {
       console.error("Chat error:", err);
     }
+  };
+
+  const fetchConversation = async (contact) => {
+    setLoading(true);
+    try {
+      const { documents } = await databases.listDocuments(
+        db.id, 
+        db.collections.messages,
+        [
+          Query.or([
+            Query.and([Query.equal('senderId', currentUser.$id), Query.equal('recipientId', contact.userId)]),
+            Query.and([Query.equal('senderId', contact.userId), Query.equal('recipientId', currentUser.$id)])
+          ]),
+          Query.orderAsc('$createdAt'),
+          Query.limit(50)
+        ]
+      );
+      setMessages(documents);
+    } catch (err) {
+      console.error("Fetch conversation error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectContact = (contact) => {
+    setSelectedContact(contact);
+    fetchConversation(contact);
   };
 
   const scrollToBottom = () => {
@@ -62,7 +95,7 @@ export default function ChatBox() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !selectedContact) return;
 
     const messageText = newMessage.trim();
     setNewMessage('');
@@ -74,6 +107,7 @@ export default function ChatBox() {
         ID.unique(),
         {
           senderId: currentUser.$id,
+          recipientId: selectedContact.userId,
           senderName: profile?.fullName || currentUser.email,
           text: messageText,
           senderRole: profile?.role || 'user',
@@ -82,7 +116,7 @@ export default function ChatBox() {
       );
     } catch (err) {
       console.error("Failed to send message:", err);
-      alert("Failed to send message. Check collection permissions!");
+      alert("Failed to send message. Make sure you added 'recipientId' to the messages collection attributes!");
     }
   };
 
@@ -114,60 +148,91 @@ export default function ChatBox() {
           >
             <div className="chat-header">
               <div className="header-user">
-                <div className="chat-avatar">
-                  <MessageSquare size={18} />
-                </div>
+                {selectedContact ? (
+                  <button className="back-btn" onClick={() => setSelectedContact(null)}>
+                    <Minus size={20} />
+                  </button>
+                ) : (
+                  <div className="chat-avatar">
+                    <MessageSquare size={18} />
+                  </div>
+                )}
                 <div>
-                  <h4>BGH Logistics Chat</h4>
-                  <p className="online-status">Global System Channel</p>
+                  <h4>{selectedContact ? selectedContact.fullName : 'Select Contact'}</h4>
+                  <p className="online-status">
+                    {selectedContact ? selectedContact.role.replace('_', ' ') : 'Messenger'}
+                  </p>
                 </div>
               </div>
               <div className="header-actions">
-                <button onClick={() => setIsOpen(false)} className="action-icon"><Minus size={20} /></button>
                 <button onClick={() => setIsOpen(false)} className="action-icon danger"><X size={20} /></button>
               </div>
             </div>
 
-            <div className="chat-messages">
-              {messages.length === 0 ? (
-                <div className="chat-empty">
-                  <div className="empty-icon"><MessageSquare size={32} /></div>
-                  <p>Start a conversation with the team</p>
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <div 
-                    key={msg.$id} 
-                    className={`message-row ${msg.senderId === currentUser?.$id ? 'mine' : 'theirs'}`}
-                  >
-                    <div className="message-content">
-                      <div className="sender-meta">
-                        <span className="sender-name">{msg.senderName}</span>
-                        <span className={`sender-role-pill ${msg.senderRole}`}>{msg.senderRole?.replace('_', ' ')}</span>
-                      </div>
-                      <div className="message-bubble">
-                        {msg.text}
-                      </div>
-                      <span className="message-time">
-                        {new Date(msg.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+            {selectedContact ? (
+              <>
+                <div className="chat-messages">
+                  {loading ? (
+                    <div className="chat-loading"><div className="spinner-sm"></div></div>
+                  ) : messages.length === 0 ? (
+                    <div className="chat-empty">
+                      <p>No messages yet. Say hello!</p>
                     </div>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+                  ) : (
+                    messages.map((msg) => (
+                      <div 
+                        key={msg.$id} 
+                        className={`message-row ${msg.senderId === currentUser?.$id ? 'mine' : 'theirs'}`}
+                      >
+                        <div className="message-content">
+                          <div className="message-bubble">
+                            {msg.text}
+                          </div>
+                          <span className="message-time">
+                            {new Date(msg.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
 
-            <form onSubmit={handleSendMessage} className="chat-input-area">
-              <input 
-                placeholder="Type a message..." 
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-              />
-              <button type="submit" disabled={!newMessage.trim()} className="send-btn">
-                <Send size={18} />
-              </button>
-            </form>
+                <form onSubmit={handleSendMessage} className="chat-input-area">
+                  <input 
+                    placeholder="Type a message..." 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                  />
+                  <button type="submit" disabled={!newMessage.trim()} className="send-btn">
+                    <Send size={18} />
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="contact-list">
+                {contacts.length === 0 ? (
+                  <div className="chat-empty"><p>No other users found.</p></div>
+                ) : (
+                  contacts.map(contact => (
+                    <button 
+                      key={contact.$id} 
+                      className="contact-item"
+                      onClick={() => handleSelectContact(contact)}
+                    >
+                      <div className={`contact-avatar-sm ${contact.role}`}>
+                        {contact.fullName?.charAt(0)}
+                      </div>
+                      <div className="contact-info">
+                        <span className="contact-name">{contact.fullName}</span>
+                        <span className="contact-role">{contact.role.replace('_', ' ')}</span>
+                      </div>
+                      <ChevronRight size={16} className="contact-arrow" />
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -272,6 +337,35 @@ export default function ChatBox() {
         }
         .send-btn:hover { transform: scale(1.05); background: var(--primary-light); }
         .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+        .back-btn:hover { background: rgba(255,255,255,0.3); }
+
+        .contact-list { flex: 1; overflow-y: auto; background: white; padding: 0.5rem; }
+        .contact-item { 
+          width: 100%; display: flex; align-items: center; gap: 1rem; padding: 1rem; 
+          border: none; background: transparent; border-radius: 12px; cursor: pointer; transition: 0.2s;
+          border-bottom: 1px solid var(--border);
+        }
+        .contact-item:hover { background: #f1f5f9; }
+        
+        .contact-avatar-sm { 
+          width: 40px; height: 40px; border-radius: 12px; background: #64748b; color: white;
+          display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;
+        }
+        .contact-avatar-sm.admin { background: #0f172a; }
+        .contact-avatar-sm.supply_dept { background: #0d9488; }
+        .contact-avatar-sm.supplier { background: #7c3aed; }
+
+        .contact-info { flex: 1; text-align: left; display: flex; flex-direction: column; }
+        .contact-name { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
+        .contact-role { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 800; }
+        .contact-arrow { color: var(--border); }
+        .contact-item:hover .contact-arrow { color: var(--primary-light); }
+
+        .chat-loading { height: 100%; display: flex; align-items: center; justify-content: center; }
+        .spinner-sm { width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
