@@ -325,7 +325,7 @@ export default function ChatBox() {
             <div className={`messenger-sidebar ${activeThread ? 'hide-mobile' : ''}`}>
               <div className="messenger-sidebar-header">
                 <div>
-                  <h3>Chats</h3>
+                  <h3>Chats {totalUnread > 0 && <span className="header-count">({totalUnread})</span>}</h3>
                   <button className="clear-all-link" onClick={markAllEverywhereAsRead}>Mark all as read</button>
                 </div>
                 <button onClick={() => setIsOpen(false)} className="close-btn-mobile"><X size={20}/></button>
@@ -504,7 +504,13 @@ export default function ChatBox() {
         .thread-info { flex: 1; text-align: left; }
         .thread-name { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
         .thread-name span { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
-        .unread-dot { background: #ef4444; color: white; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .unread-dot { 
+          background: #0ea5e9; color: white; font-size: 0.75rem; font-weight: 800; 
+          min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; 
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
+        }
+        .header-count { font-size: 1rem; color: var(--accent); opacity: 0.8; font-weight: 600; }
         .thread-role { font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
 
         .messenger-chat { flex: 1; display: flex; flex-direction: column; background: #fff; }
