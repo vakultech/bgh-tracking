@@ -1,537 +1,456 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, X, User, ArrowLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  MessageSquare, 
+  Send, 
+  X, 
+  Search, 
+  MoreVertical, 
+  CheckCheck, 
+  Check, 
+  ArrowLeft,
+  Circle,
+  User
+} from 'lucide-react';
 import { databases, db, ID, Query, client, account } from '../lib/appwrite';
 import { motion, AnimatePresence } from 'framer-motion';
+import { format } from 'date-fns';
+import { useUser } from '../UserContext';
 
 export default function ChatBox() {
+  const { profile, user: currentUser } = useUser();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeThread, setActiveThread] = useState(null);
   const [contacts, setContacts] = useState([]);
-  const [selectedContact, setSelectedContact] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [unreadMap, setUnreadMap] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
   const [newMessage, setNewMessage] = useState('');
-  const [unreadSenders, setUnreadSenders] = useState({});
-  const [currentUser, setCurrentUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
+  
   const messagesEndRef = useRef(null);
-  const selectedContactRef = useRef(null);
+  const activeThreadRef = useRef(null);
 
-  const hasUnread = Object.keys(unreadSenders).length > 0;
-
+  // Sync ref with state for Realtime access
   useEffect(() => {
-    selectedContactRef.current = selectedContact;
-  }, [selectedContact]);
+    activeThreadRef.current = activeThread;
+    if (activeThread && isOpen) {
+      markAllAsRead(activeThread.userId);
+    }
+  }, [activeThread, isOpen]);
 
+  const myId = useMemo(() => profile?.userId || currentUser?.$id, [profile, currentUser]);
+
+  // 1. INITIAL DATA FETCH
   useEffect(() => {
-    fetchInitialData();
-
-    // Subscribe to messages (Create and Update)
+    if (!myId) return;
+    initMessenger();
+    
+    // 2. REALTIME SUBSCRIPTION
     const unsubscribe = client.subscribe(
       `databases.${db.id}.collections.${db.collections.messages}.documents`,
       (response) => {
         const msg = response.payload;
-        const myId = profile?.userId || currentUser?.$id;
-        const activeContact = selectedContactRef.current;
-        if (!myId) return;
-
+        
+        // Handle New Messages
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-          // If message is for me
-          if (msg.recipientId === myId) {
-            const isTalkingToSender = activeContact?.userId === msg.senderId;
-            
-            if (!isOpen || !isTalkingToSender) {
-              setUnreadSenders(prev => ({
-                ...prev,
-                [msg.senderId]: (prev[msg.senderId] || 0) + 1
-              }));
-              try { new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play(); } catch(e) {}
-            }
+          const isForMe = msg.recipientId === myId;
+          const isFromMe = msg.senderId === myId;
+          const currentTalkingTo = activeThreadRef.current?.userId;
 
-            if (isTalkingToSender) {
-              setMessages((prev) => {
-                if (prev.some(m => m.$id === msg.$id)) return prev;
-                return [...prev, msg];
-              });
-              // Auto-mark as read if window is open
-              databases.updateDocument(db.id, db.collections.messages, msg.$id, { isRead: true });
+          if (isForMe) {
+            if (isOpen && currentTalkingTo === msg.senderId) {
+              // I am currently looking at this person
+              appendMessage(msg);
+              markMessageAsRead(msg.$id);
+            } else {
+              // Notification mode
+              incrementUnread(msg.senderId);
+              playNotificationSound();
             }
-          }
-
-          // If message is from me
-          if (msg.senderId === myId && activeContact?.userId === msg.recipientId) {
-            setMessages((prev) => {
-              if (prev.some(m => m.$id === msg.$id)) return prev;
-              return [...prev, msg];
-            });
+          } else if (isFromMe && currentTalkingTo === msg.recipientId) {
+            appendMessage(msg);
           }
         }
 
-        // Listen for "isRead" updates to sync across devices/tabs
+        // Handle Read Status Updates
         if (response.events.includes('databases.*.collections.*.documents.*.update')) {
           if (msg.recipientId === myId && msg.isRead === true) {
-            setUnreadSenders(prev => {
-              const newCounts = { ...prev };
-              delete newCounts[msg.senderId];
-              return newCounts;
-            });
+            decrementUnread(msg.senderId);
+          }
+          if (msg.senderId === myId && activeThreadRef.current?.userId === msg.recipientId) {
+            updateMessageStatus(msg.$id, true);
           }
         }
       }
     );
 
     return () => unsubscribe();
-  }, [currentUser, profile, isOpen]);
+  }, [myId]);
 
-  useEffect(() => {
-    // Scroll to bottom whenever messages or view state changes
-    if (messages.length > 0 && !loading) {
-      const timer = setTimeout(() => {
-        scrollToBottom(messages.length <= 10 ? "auto" : "smooth");
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [messages, isOpen, selectedContact, loading]);
-
-  const fetchInitialData = async () => {
+  const initMessenger = async () => {
     try {
-      const user = await account.get();
-      setCurrentUser(user);
-      
+      // Fetch all potential contacts (profiles)
       const { documents: profiles } = await databases.listDocuments(
-        db.id, db.collections.profiles, [Query.equal('userId', user.$id)]
-      );
-      if (profiles.length > 0) setProfile(profiles[0]);
-
-      const { documents: allProfiles } = await databases.listDocuments(
         db.id, db.collections.profiles, [Query.limit(100)]
       );
-      setContacts(allProfiles.filter(p => p.userId !== user.$id));
+      setContacts(profiles.filter(p => p.userId !== myId));
 
-      const { documents: unreadMessages } = await databases.listDocuments(
-        db.id,
-        db.collections.messages,
-        [Query.equal('recipientId', user.$id), Query.equal('isRead', false)]
+      // Fetch unread counts
+      const { documents: unreads } = await databases.listDocuments(
+        db.id, db.collections.messages, 
+        [Query.equal('recipientId', myId), Query.equal('isRead', false)]
       );
       
-      const counts = unreadMessages.reduce((acc, msg) => {
-        acc[msg.senderId] = (acc[msg.senderId] || 0) + 1;
-        return acc;
-      }, {});
-      
-      setUnreadSenders(counts);
-
-    } catch (err) {
-      console.error("Chat error:", err);
-    }
-  };
-
-  const markMessagesAsRead = async (contactId) => {
-    const myId = profile?.userId || currentUser?.$id;
-    if (!myId) return;
-
-    try {
-      const { documents: unread } = await databases.listDocuments(
-        db.id,
-        db.collections.messages,
-        [
-          Query.equal('recipientId', myId),
-          Query.equal('senderId', contactId),
-          Query.equal('isRead', false)
-        ]
-      );
-
-      if (unread.length === 0) return;
-
-      // Update locally immediately to avoid UI lag
-      setUnreadSenders(prev => {
-        const newCounts = { ...prev };
-        delete newCounts[contactId];
-        return newCounts;
+      const counts = {};
+      unreads.forEach(m => {
+        counts[m.senderId] = (counts[m.senderId] || 0) + 1;
       });
-
-      await Promise.all(unread.map(msg => 
-        databases.updateDocument(db.id, db.collections.messages, msg.$id, { isRead: true })
-      ));
+      setUnreadMap(counts);
     } catch (err) {
-      console.error("Failed to mark as read:", err);
+      console.error("Messenger Init Error:", err);
     }
   };
 
-  const fetchConversation = async (contact) => {
+  const fetchMessages = async (contactId) => {
     setLoading(true);
     try {
-      const myId = profile?.userId || currentUser?.$id;
       const { documents } = await databases.listDocuments(
-        db.id, 
-        db.collections.messages,
+        db.id, db.collections.messages,
         [
           Query.or([
-            Query.and([Query.equal('senderId', myId), Query.equal('recipientId', contact.userId)]),
-            Query.and([Query.equal('senderId', contact.userId), Query.equal('recipientId', myId)])
+            Query.and([Query.equal('senderId', myId), Query.equal('recipientId', contactId)]),
+            Query.and([Query.equal('senderId', contactId), Query.equal('recipientId', myId)])
           ]),
           Query.orderAsc('$createdAt'),
           Query.limit(50)
         ]
       );
       setMessages(documents);
-      markMessagesAsRead(contact.userId); // Don't await, let it run in background
+      scrollToBottom("auto");
     } catch (err) {
-      console.error("Fetch conversation error:", err);
+      console.error("Fetch Messages Error:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectContact = (contact) => {
-    setSelectedContact(contact);
-    // Force clear locally
-    setUnreadSenders(prev => {
-      const next = { ...prev };
-      delete next[contact.userId];
-      return next;
-    });
-    fetchConversation(contact);
-  };
-
-  const scrollToBottom = (behavior = "smooth") => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior });
+  const markAllAsRead = async (contactId) => {
+    try {
+      const { documents: unread } = await databases.listDocuments(
+        db.id, db.collections.messages,
+        [Query.equal('recipientId', myId), Query.equal('senderId', contactId), Query.equal('isRead', false)]
+      );
+      
+      if (unread.length > 0) {
+        await Promise.all(unread.map(m => 
+          databases.updateDocument(db.id, db.collections.messages, m.$id, { isRead: true })
+        ));
+      }
+      setUnreadMap(prev => {
+        const next = { ...prev };
+        delete next[contactId];
+        return next;
+      });
+    } catch (err) {
+      console.error("Mark Read Error:", err);
     }
   };
 
-  const handleSendMessage = async (e) => {
+  const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedContact) return;
+    if (!newMessage.trim() || !activeThread) return;
 
-    const messageText = newMessage.trim();
+    const text = newMessage.trim();
     setNewMessage('');
 
-    const myId = profile?.userId || currentUser?.$id;
-    if (!myId) return;
-
-    // Optimistic local update
-    const tempMsg = {
-      $id: `temp-${Date.now()}`,
-      senderId: myId,
-      recipientId: selectedContact.userId,
-      senderName: profile?.fullName || currentUser.email,
-      text: messageText,
-      senderRole: profile?.role || 'user',
-      isRead: false,
-      $createdAt: new Date().toISOString()
-    };
-    setMessages(prev => [...prev, tempMsg]);
-
     try {
-      await databases.createDocument(
-        db.id,
-        db.collections.messages,
-        ID.unique(),
-        {
-          senderId: myId,
-          recipientId: selectedContact.userId,
-          senderName: profile?.fullName || currentUser.email,
-          text: messageText,
-          senderRole: profile?.role || 'user',
-          isRead: false
-        }
-      );
+      await databases.createDocument(db.id, db.collections.messages, ID.unique(), {
+        senderId: myId,
+        recipientId: activeThread.userId,
+        senderName: profile?.fullName || currentUser?.email,
+        senderRole: profile?.role || 'user',
+        text: text,
+        isRead: false
+      });
+      scrollToBottom();
     } catch (err) {
-      console.error("Failed to send message:", err);
-      // Remove the optimistic message on error
-      setMessages(prev => prev.filter(m => m.$id !== tempMsg.$id));
-      alert("Failed to send message. Make sure you added 'isRead' (Boolean) to the messages collection attributes!");
+      console.error("Send Error:", err);
     }
   };
 
-  return (
-    <div className="chat-system-root">
-      {/* Floating Toggle Button */}
-      {!isOpen && (
-        <motion.button 
-          initial={{ scale: 0, rotate: -45 }}
-          animate={{ scale: 1, rotate: 0 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className="chat-toggle-btn"
-          onClick={() => {
-            setIsOpen(true);
-          }}
-        >
-          <MessageSquare size={24} />
-          {hasUnread && <span className="notification-badge-pulse"></span>}
-        </motion.button>
-      )}
+  // Helper Functions
+  const appendMessage = (msg) => setMessages(prev => prev.some(m => m.$id === msg.$id) ? prev : [...prev, msg]);
+  const updateMessageStatus = (id, status) => setMessages(prev => prev.map(m => m.$id === id ? { ...m, isRead: status } : m));
+  const incrementUnread = (id) => setUnreadMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  const decrementUnread = (id) => setUnreadMap(prev => {
+    const next = { ...prev };
+    delete next[id];
+    return next;
+  });
+  const markMessageAsRead = (id) => databases.updateDocument(db.id, db.collections.messages, id, { isRead: true });
+  const playNotificationSound = () => {
+    try { new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play(); } catch(e) {}
+  };
+  const scrollToBottom = (behavior = "smooth") => {
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior }), 100);
+  };
 
-      {/* Chat Window */}
+  const filteredContacts = contacts.filter(c => 
+    c.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.role?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totalUnread = Object.values(unreadMap).reduce((a, b) => a + b, 0);
+
+  return (
+    <div className="messenger-system">
+      {/* 1. FLOATING TOGGLE */}
+      <motion.button 
+        className={`messenger-toggle ${totalUnread > 0 ? 'pulse' : ''}`}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <MessageSquare size={24} />
+        {totalUnread > 0 && <span className="unread-total">{totalUnread}</span>}
+      </motion.button>
+
+      {/* 2. MAIN MESSENGER WINDOW */}
       <AnimatePresence>
         {isOpen && (
           <motion.div 
-            initial={{ opacity: 0, y: 100, scale: 0.8 }}
+            initial={{ opacity: 0, y: 100, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 100, scale: 0.8 }}
-            className="chat-window card glass"
+            exit={{ opacity: 0, y: 100, scale: 0.9 }}
+            className="messenger-window card glass"
           >
-            <div className="chat-header">
-              <div className="header-user">
-                {selectedContact ? (
-                  <button className="back-btn" onClick={() => setSelectedContact(null)}>
-                    <ArrowLeft size={20} />
-                  </button>
-                ) : (
-                  <div className="chat-avatar">
-                    <MessageSquare size={18} />
-                  </div>
-                )}
-                <div>
-                  <h4>{selectedContact ? selectedContact.fullName : 'Direct Messages'}</h4>
-                  <p className="online-status">
-                    {selectedContact ? selectedContact.role.replace('_', ' ') : 'Select a contact to chat'}
-                  </p>
-                </div>
+            {/* SIDEBAR: THREADS */}
+            <div className={`messenger-sidebar ${activeThread ? 'hide-mobile' : ''}`}>
+              <div className="messenger-sidebar-header">
+                <h3>Chats</h3>
+                <button onClick={() => setIsOpen(false)} className="close-btn-mobile"><X size={20}/></button>
               </div>
-              <div className="header-actions">
-                <button onClick={() => setIsOpen(false)} className="action-icon danger"><X size={20} /></button>
+              
+              <div className="messenger-search">
+                <Search size={18} />
+                <input 
+                  placeholder="Search Messenger" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="thread-list">
+                {filteredContacts.map(contact => (
+                  <button 
+                    key={contact.$id}
+                    className={`thread-item ${activeThread?.userId === contact.userId ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveThread(contact);
+                      fetchMessages(contact.userId);
+                    }}
+                  >
+                    <div className="avatar-wrapper">
+                      <div className="avatar">
+                        {contact.fullName?.charAt(0) || <User size={16}/>}
+                      </div>
+                      {contact.isOnline && <span className="online-indicator" />}
+                    </div>
+                    <div className="thread-info">
+                      <div className="thread-name">
+                        <span>{contact.fullName || 'User'}</span>
+                        {unreadMap[contact.userId] > 0 && (
+                          <span className="unread-dot">{unreadMap[contact.userId]}</span>
+                        )}
+                      </div>
+                      <p className="thread-role">{contact.role?.replace('_', ' ')}</p>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {selectedContact ? (
-              <>
-                <div className="chat-messages">
-                  {loading ? (
-                    <div className="chat-loading"><div className="spinner-sm"></div></div>
-                  ) : messages.length === 0 ? (
-                    <div className="chat-empty">
-                      <p>No messages yet. Say hello!</p>
-                    </div>
-                  ) : (
-                    messages.map((msg) => (
-                      <div 
-                        key={msg.$id} 
-                        className={`message-row ${msg.senderId === currentUser?.$id ? 'mine' : 'theirs'}`}
-                      >
-                        <div className="message-content">
-                          <div className="message-bubble">
-                            {msg.text}
-                          </div>
-                          <span className="message-time">
-                            {new Date(msg.$createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
+            {/* MAIN: CHAT AREA */}
+            <div className={`messenger-chat ${!activeThread ? 'hide-mobile' : ''}`}>
+              {activeThread ? (
+                <>
+                  <div className="chat-header">
+                    <button className="back-btn" onClick={() => setActiveThread(null)}><ArrowLeft size={20}/></button>
+                    <div className="chat-header-user">
+                      <div className="avatar sm">{activeThread.fullName?.charAt(0)}</div>
+                      <div>
+                        <h4>{activeThread.fullName}</h4>
+                        <span className="status">{activeThread.isOnline ? 'Active Now' : 'Offline'}</span>
                       </div>
-                    ))
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
+                    </div>
+                    <button className="icon-btn"><MoreVertical size={20}/></button>
+                  </div>
 
-                <form onSubmit={handleSendMessage} className="chat-input-area">
-                  <input 
-                    placeholder="Type a message..." 
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                  />
-                  <button type="submit" disabled={!newMessage.trim()} className="send-btn">
-                    <Send size={18} />
-                  </button>
-                </form>
-              </>
-            ) : (
-              <div className="contact-list">
-                {contacts.length === 0 ? (
-                  <div className="chat-empty"><p>No other users found.</p></div>
-                ) : (
-                  contacts.map(contact => {
-                    const lastActive = contact.lastActive ? new Date(contact.lastActive) : null;
-                    const isOnline = contact.isOnline && lastActive && (new Date() - lastActive < 300000);
-                    const unreadCount = unreadSenders[contact.userId] || 0;
-                    
-                    return (
-                      <button 
-                        key={contact.$id} 
-                        className={`contact-item ${unreadCount > 0 ? 'has-unread' : ''}`}
-                        onClick={() => handleSelectContact(contact)}
-                      >
-                        <div className={`contact-avatar-sm ${contact.role}`}>
-                          {contact.fullName?.charAt(0)}
-                          <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
-                        </div>
-                        <div className="contact-info">
-                          <div className="contact-name-row">
-                            <span className="contact-name">{contact.fullName}</span>
-                            {unreadCount > 0 && <span className="unread-pill">{unreadCount}</span>}
-                          </div>
-                          <span className="contact-role">{contact.role.replace('_', ' ')}</span>
-                        </div>
-                        <ChevronRight size={16} className="contact-arrow" />
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            )}
+                  <div className="chat-messages">
+                    {loading ? (
+                      <div className="chat-loading"><Circle className="spinner" /></div>
+                    ) : (
+                      <>
+                        {messages.map((msg, i) => {
+                          const isMe = msg.senderId === myId;
+                          return (
+                            <div key={msg.$id} className={`message-row ${isMe ? 'me' : 'them'}`}>
+                              <div className="message-bubble">
+                                <p>{msg.text}</p>
+                                <div className="message-meta">
+                                  <span>{format(new Date(msg.$createdAt), 'h:mm a')}</span>
+                                  {isMe && (
+                                    msg.isRead ? <CheckCheck size={12} className="read" /> : <Check size={12} />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div ref={messagesEndRef} />
+                      </>
+                    )}
+                  </div>
+
+                  <form className="chat-input" onSubmit={sendMessage}>
+                    <input 
+                      placeholder="Type a message..." 
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                    />
+                    <button type="submit" disabled={!newMessage.trim()}><Send size={20} /></button>
+                  </form>
+                </>
+              ) : (
+                <div className="chat-empty">
+                  <div className="empty-icon"><MessageSquare size={48} /></div>
+                  <h3>Your Messages</h3>
+                  <p>Select a contact to start a conversation</p>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <style jsx>{`
-        .chat-system-root { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; }
+        .messenger-system { position: fixed; bottom: 2rem; right: 2rem; z-index: 1000; }
         
-        .chat-toggle-btn { 
-          width: 64px; height: 64px; 
-          background: var(--primary); color: white; 
-          border-radius: 50%; border: none; 
-          box-shadow: 0 12px 24px -6px rgba(14, 165, 233, 0.4);
-          cursor: pointer; position: relative;
-          display: flex; align-items: center; justify-content: center;
+        .messenger-toggle { 
+          width: 64px; height: 64px; border-radius: 50%; background: var(--primary); 
+          color: white; border: none; cursor: pointer; box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
+          display: flex; align-items: center; justify-content: center; position: relative;
         }
-        .online-indicator {
-          position: absolute; top: 2px; right: 2px;
-          width: 14px; height: 14px; background: #10b981;
-          border: 3px solid white; border-radius: 50%;
+        .unread-total { 
+          position: absolute; top: -5px; right: -5px; background: #ef4444; 
+          color: white; font-size: 0.75rem; font-weight: 800; width: 24px; height: 24px;
+          border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          border: 3px solid white;
         }
 
-        .chat-window {
-          width: 400px; height: 550px;
-          display: flex; flex-direction: column;
-          background: white; border: 1px solid var(--border);
-          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-          overflow: hidden; border-radius: 24px;
+        .messenger-window {
+          position: absolute; bottom: 80px; right: 0; width: 850px; height: 600px;
+          background: white; border-radius: 24px; display: flex; overflow: hidden;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid var(--border);
         }
 
-        @media (max-width: 480px) {
-          .chat-window { width: calc(100vw - 2rem); height: 70vh; right: 1rem; bottom: 1rem; position: fixed; }
+        @media (max-width: 900px) {
+          .messenger-window { width: calc(100vw - 2rem); height: 80vh; right: -1rem; }
         }
 
-        .chat-header {
-          padding: 1.25rem 1.5rem; background: var(--primary); color: white;
-          display: flex; justify-content: space-between; align-items: center;
-        }
-        .header-user { display: flex; align-items: center; gap: 1rem; }
-        .chat-avatar { 
-          width: 40px; height: 40px; background: rgba(255,255,255,0.2); 
-          border-radius: 12px; display: flex; align-items: center; justify-content: center;
-        }
-        .header-user h4 { margin: 0; font-size: 1rem; font-weight: 700; }
-        .online-status { font-size: 0.75rem; opacity: 0.8; margin: 0; }
+        .messenger-sidebar { width: 320px; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .messenger-sidebar-header { padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .messenger-sidebar-header h3 { font-size: 1.5rem; font-weight: 800; color: var(--primary); }
         
-        .header-actions { display: flex; gap: 0.5rem; }
-        .action-icon { background: transparent; border: none; color: white; padding: 4px; cursor: pointer; opacity: 0.7; transition: 0.2s; }
-        .action-icon:hover { opacity: 1; transform: scale(1.1); }
-        .action-icon.danger:hover { color: #f87171; }
-
-        .chat-messages {
-          flex: 1; overflow-y: auto; padding: 1.5rem;
-          display: flex; flex-direction: column; gap: 1.25rem;
-          background: #f8fafc;
+        .messenger-search { 
+          margin: 0 1.5rem 1.5rem; background: #f1f5f9; border-radius: 12px;
+          display: flex; align-items: center; padding: 0.5rem 1rem; gap: 0.75rem; color: #64748b;
         }
+        .messenger-search input { border: none; background: transparent; width: 100%; font-size: 0.9rem; font-weight: 500; }
+        .messenger-search input:focus { outline: none; }
+
+        .thread-list { flex: 1; overflow-y: auto; padding: 0.5rem; }
+        .thread-item { 
+          width: 100%; display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem;
+          border-radius: 12px; cursor: pointer; transition: all 0.2s; background: transparent;
+        }
+        .thread-item:hover { background: #f8fafc; }
+        .thread-item.active { background: #f0f9ff; }
         
+        .avatar-wrapper { position: relative; }
+        .avatar { 
+          width: 48px; height: 48px; border-radius: 50%; background: var(--primary-light);
+          color: white; display: flex; align-items: center; justify-content: center;
+          font-weight: 800; font-size: 1.2rem;
+        }
+        .avatar.sm { width: 40px; height: 40px; font-size: 1rem; }
+        .online-indicator { 
+          position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px;
+          background: #22c55e; border: 2px solid white; border-radius: 50%;
+        }
+
+        .thread-info { flex: 1; text-align: left; }
+        .thread-name { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
+        .thread-name span { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
+        .unread-dot { background: #ef4444; color: white; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .thread-role { font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
+
+        .messenger-chat { flex: 1; display: flex; flex-direction: column; background: #fff; }
+        .chat-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; }
+        .chat-header-user { flex: 1; display: flex; align-items: center; gap: 0.75rem; }
+        .chat-header-user h4 { font-weight: 800; color: var(--primary); }
+        .chat-header-user .status { font-size: 0.75rem; color: #22c55e; font-weight: 600; }
+
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
         .message-row { display: flex; width: 100%; }
-        .message-row.mine { justify-content: flex-end; }
-        .message-row.theirs { justify-content: flex-start; }
+        .message-row.me { justify-content: flex-end; }
+        .message-row.them { justify-content: flex-start; }
 
-        .message-content { max-width: 80%; display: flex; flex-direction: column; gap: 0.35rem; }
-        .sender-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem; font-weight: 800; }
-        .mine .sender-meta { justify-content: flex-end; }
-        .sender-name { color: var(--text-muted); }
-        .sender-role-pill { 
-          text-transform: uppercase; padding: 1px 4px; border-radius: 4px; 
-          background: #e2e8f0; color: #475569; 
+        .message-bubble { 
+          max-width: 75%; padding: 0.75rem 1rem; border-radius: 18px; 
+          font-size: 0.95rem; line-height: 1.4; position: relative;
         }
-        .sender-role-pill.admin { background: #fee2e2; color: #991b1b; }
-        .sender-role-pill.supply_dept { background: #ccfbf1; color: #0f766e; }
-
-        .message-bubble {
-          padding: 0.85rem 1.15rem; border-radius: 18px; font-size: 0.95rem; line-height: 1.4;
-          box-shadow: var(--shadow-sm);
-        }
-        .mine .message-bubble { background: var(--primary); color: white; border-bottom-right-radius: 4px; }
-        .theirs .message-bubble { background: white; color: var(--primary); border-bottom-left-radius: 4px; }
-
-        .message-time { font-size: 0.65rem; color: var(--text-muted); opacity: 0.7; }
-        .mine .message-time { text-align: right; }
-
-        .chat-empty { 
-          height: 100%; display: flex; flex-direction: column; 
-          align-items: center; justify-content: center; color: var(--text-muted); text-align: center;
-          padding: 2rem; opacity: 0.6;
-        }
-        .empty-icon { margin-bottom: 1rem; }
-
-        .chat-input-area {
-          padding: 1.25rem; background: white; border-top: 1px solid var(--border);
-          display: flex; gap: 0.75rem; align-items: center;
-        }
-        .chat-input-area input {
-          flex: 1; height: 44px; border-radius: 22px; border: 1px solid var(--border);
-          padding: 0 1.25rem; font-size: 0.9rem; font-weight: 600;
-        }
-        .chat-input-area input:focus { border-color: var(--primary); outline: none; }
-        .send-btn { 
-          width: 44px; height: 44px; background: var(--primary); color: white;
-          border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: 0.2s;
-        }
-        .send-btn:hover { transform: scale(1.05); background: var(--primary-light); }
-        .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
-        .back-btn:hover { background: rgba(255,255,255,0.3); }
-
-        .contact-list { flex: 1; overflow-y: auto; background: white; padding: 0.5rem; }
-        .contact-item { 
-          width: 100%; display: flex; align-items: center; gap: 1rem; padding: 1rem; 
-          border: none; background: transparent; border-radius: 12px; cursor: pointer; transition: 0.2s;
-          border-bottom: 1px solid var(--border);
-        }
-        .contact-item:hover { background: #f1f5f9; }
+        .me .message-bubble { background: var(--primary); color: white; border-bottom-right-radius: 4px; }
+        .them .message-bubble { background: #f1f5f9; color: var(--primary); border-bottom-left-radius: 4px; }
         
-        .contact-avatar-sm { 
-          width: 40px; height: 40px; border-radius: 12px; background: #64748b; color: white;
-          display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;
-          position: relative;
-        }
-        .contact-avatar-sm.admin { background: #0f172a; }
-        .contact-avatar-sm.supply_dept { background: #0d9488; }
-        .contact-avatar-sm.supplier { background: #7c3aed; }
+        .message-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.65rem; opacity: 0.7; margin-top: 0.25rem; }
+        .me .message-meta { justify-content: flex-end; }
+        .read { color: #facc15; }
 
-        .status-dot {
-          position: absolute; bottom: -2px; right: -2px;
-          width: 12px; height: 12px; border-radius: 50%;
-          border: 2px solid white;
+        .chat-input { padding: 1.25rem; border-top: 1px solid var(--border); display: flex; gap: 1rem; }
+        .chat-input input { 
+          flex: 1; border: none; background: #f1f5f9; border-radius: 20px; 
+          padding: 0.75rem 1.25rem; font-size: 0.95rem; font-weight: 500;
         }
-        .status-dot.online { background: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
-        .status-dot.offline { background: #ef4444; }
+        .chat-input input:focus { outline: none; box-shadow: 0 0 0 2px var(--primary-light); }
+        .chat-input button { 
+          background: var(--primary); color: white; border: none; width: 44px; height: 44px;
+          border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer;
+          transition: transform 0.2s;
+        }
+        .chat-input button:hover:not(:disabled) { transform: scale(1.1); }
+        .chat-input button:disabled { opacity: 0.5; background: #cbd5e1; }
 
-        .notification-badge-pulse {
-          position: absolute; top: -5px; right: -5px;
-          width: 18px; height: 18px; background: #ef4444;
-          border-radius: 50%; border: 2px solid white;
-          animation: badge-pulse 1.5s infinite;
+        .chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; text-align: center; }
+        .empty-icon { width: 100px; height: 100px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; }
+        
+        .back-btn { display: none; }
+        @media (max-width: 768px) {
+          .hide-mobile { display: none !map; }
+          .back-btn { display: block; border: none; background: transparent; color: var(--primary); }
+          .messenger-window { width: 100vw; height: 100vh; bottom: 0; right: 0; border-radius: 0; }
+          .close-btn-mobile { border: none; background: transparent; }
         }
 
-        @keyframes badge-pulse {
-          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-          70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+        .pulse { animation: pulse-red 2s infinite; }
+        @keyframes pulse-red {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+          70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
           100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        .unread-pill {
-          background: #ef4444; color: white; font-size: 0.6rem; 
-          padding: 2px 6px; border-radius: 10px; font-weight: 900;
-          letter-spacing: 0.05em;
-        }
-        .contact-name-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-        .contact-item.has-unread { background: rgba(239, 68, 68, 0.03); }
-
-        .contact-info { flex: 1; text-align: left; display: flex; flex-direction: column; }
-        .contact-name { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
-        .contact-role { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 800; }
-        .contact-arrow { color: var(--border); }
-        .contact-item:hover .contact-arrow { color: var(--primary-light); }
-
-        .chat-loading { height: 100%; display: flex; align-items: center; justify-content: center; }
-        .spinner-sm { width: 24px; height: 24px; border: 3px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { animation: rotate 2s linear infinite; }
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
