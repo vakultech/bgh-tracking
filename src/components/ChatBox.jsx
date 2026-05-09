@@ -127,7 +127,7 @@ export default function ChatBox() {
         ID.unique(),
         {
           senderId: currentUser.$id,
-          recipientId: selectedContact.userId,
+          recipientId: selectedContact.userId || selectedContact.$id,
           senderName: profile?.fullName || currentUser.email,
           text: messageText,
           senderRole: profile?.role || 'user'
