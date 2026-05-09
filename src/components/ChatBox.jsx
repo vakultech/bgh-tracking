@@ -53,18 +53,21 @@ export default function ChatBox() {
         const myId = profile?.userId || currentUser?.$id;
         const myAltId = profile?.$id || currentUser?.$id;
         
-        // Debug Alert
-        alert(`NEW MESSAGE!\nFrom: ${msg.senderId}\nTo: ${msg.recipientId}\nMy IDs: ${myId}, ${myAltId}`);
-        
         // Handle New Messages
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
           const isForMe = msg.recipientId === myId || msg.recipientId === myAltId;
           const isFromMe = msg.senderId === myId || msg.senderId === myAltId;
           const activeContact = activeThreadRef.current;
-          const currentTalkingTo = activeContact?.userId || activeContact?.$id;
+          
+          // Fuzzy match to the active conversation
+          const isTalkingToSender = activeContact && (
+            activeContact.userId === msg.senderId || 
+            activeContact.$id === msg.senderId ||
+            activeContact.fullName === msg.senderName
+          );
 
           if (isForMe) {
-            if (isOpen && currentTalkingTo === msg.senderId) {
+            if (isOpen && isTalkingToSender) {
               // I am currently looking at this person
               appendMessage(msg);
               markMessageAsRead(msg.$id);
@@ -73,7 +76,10 @@ export default function ChatBox() {
               incrementUnread(msg.senderId);
               playNotificationSound();
             }
-          } else if (isFromMe && currentTalkingTo === msg.recipientId) {
+          } else if (isFromMe && activeContact && (
+            activeContact.userId === msg.recipientId ||
+            activeContact.$id === msg.recipientId
+          )) {
             appendMessage(msg);
           }
         }
@@ -130,8 +136,6 @@ export default function ChatBox() {
         }
       });
 
-      alert(`Found ${unreads.length} unread messages. Synced with ${Object.keys(counts).length} contacts.`);
-
       // CLEANUP STRAYS IMMEDIATELY
       if (strayMessages.length > 0) {
         await Promise.all(strayMessages.map(id => 
@@ -161,18 +165,15 @@ export default function ChatBox() {
   };
 
   const clearConversation = async () => {
-    const userRole = profile?.role || 'user';
-    alert("Delete triggered by: " + userRole);
-    
     if (!activeThread) return;
-    if (!window.confirm("Permanently delete all messages in this conversation? This cannot be undone.")) return;
+    if (!window.confirm(`Permanently delete all messages with ${activeThread.fullName}?`)) return;
 
     try {
       setLoading(true);
+      const userRole = profile?.role || 'user';
 
-      // Allow both admin and supply_dept to delete
       if (userRole !== 'admin' && userRole !== 'supply_dept') {
-        alert("Action Denied: You must be an 'admin' or 'supply_dept' to delete. Your role: " + userRole);
+        alert("Action Denied: You do not have permission to delete messages.");
         setLoading(false);
         return;
       }
