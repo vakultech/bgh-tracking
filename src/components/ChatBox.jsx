@@ -274,15 +274,36 @@ export default function ChatBox() {
     }
   };
 
+  const appendMessage = (msg) => {
+    setMessages(prev => {
+      if (prev.some(m => m.$id === msg.$id)) return prev;
+      return [...prev, msg];
+    });
+    setTimeout(() => scrollToBottom("smooth"), 100);
+  };
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !activeThread) return;
 
     const text = newMessage.trim();
+    const tempId = 'temp-' + Date.now();
+    const optimisticMsg = {
+      $id: tempId,
+      senderId: myId,
+      recipientId: activeThread.userId,
+      text: text,
+      $createdAt: new Date().toISOString(),
+      isRead: false
+    };
+
+    // 1. INSTANT LOCAL APPEND
+    setMessages(prev => [...prev, optimisticMsg]);
     setNewMessage('');
+    setTimeout(() => scrollToBottom("smooth"), 100);
 
     try {
-      await databases.createDocument(db.id, db.collections.messages, ID.unique(), {
+      const response = await databases.createDocument(db.id, db.collections.messages, ID.unique(), {
         senderId: myId,
         recipientId: activeThread.userId,
         senderName: profile?.fullName || currentUser?.email,
@@ -290,14 +311,16 @@ export default function ChatBox() {
         text: text,
         isRead: false
       });
-      scrollToBottom();
+      
+      // 2. Replace temp with real
+      setMessages(prev => prev.map(m => m.$id === tempId ? response : m));
     } catch (err) {
       console.error("Send Error:", err);
+      // Rollback
+      setMessages(prev => prev.filter(m => m.$id !== tempId));
+      alert("Failed to send message.");
     }
   };
-
-  // Helper Functions
-  const appendMessage = (msg) => setMessages(prev => prev.some(m => m.$id === msg.$id) ? prev : [...prev, msg]);
   const updateMessageStatus = (id, status) => setMessages(prev => prev.map(m => m.$id === id ? { ...m, isRead: status } : m));
   const incrementUnread = (id) => setUnreadMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
   const decrementUnread = (id) => setUnreadMap(prev => {
