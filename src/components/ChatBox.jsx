@@ -19,17 +19,16 @@ export default function ChatBox() {
   useEffect(() => {
     fetchInitialData();
 
-    // Subscribe to messages
+    // Subscribe to messages (Create and Update)
     const unsubscribe = client.subscribe(
       `databases.${db.id}.collections.${db.collections.messages}.documents`,
       (response) => {
+        const msg = response.payload;
+        const myId = profile?.userId || currentUser?.$id;
+
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-          const msg = response.payload;
-          const myId = profile?.userId || currentUser?.$id;
-          
           // Only notify if the message is for me
           if (msg.recipientId === myId) {
-            // If chat is closed OR I'm talking to someone else
             if (!isOpen || selectedContact?.userId !== msg.senderId) {
               setUnreadSenders(prev => ({
                 ...prev,
@@ -46,6 +45,18 @@ export default function ChatBox() {
 
           if (msg.senderId === myId && selectedContact?.userId === msg.recipientId) {
             setMessages((prev) => [...prev, msg]);
+          }
+        }
+
+        // Listen for "isRead" updates to sync across devices/tabs
+        if (response.events.includes('databases.*.collections.*.documents.*.update')) {
+          if (msg.recipientId === myId && msg.isRead === true) {
+            setUnreadSenders(prev => {
+              const newCounts = { ...prev };
+              delete newCounts[msg.senderId];
+              if (Object.keys(newCounts).length === 0) setHasNewMessage(false);
+              return newCounts;
+            });
           }
         }
       }
@@ -200,7 +211,6 @@ export default function ChatBox() {
         >
           <MessageSquare size={24} />
           {hasNewMessage && <span className="notification-badge-pulse"></span>}
-          <span className="online-indicator"></span>
         </motion.button>
       )}
 
