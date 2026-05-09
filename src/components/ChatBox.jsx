@@ -110,8 +110,7 @@ export default function ChatBox() {
           recipientId: selectedContact.userId,
           senderName: profile?.fullName || currentUser.email,
           text: messageText,
-          senderRole: profile?.role || 'user',
-          createdAt: new Date().toISOString()
+          senderRole: profile?.role || 'user'
         }
       );
     } catch (err) {
