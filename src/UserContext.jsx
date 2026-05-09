@@ -14,12 +14,27 @@ export function UserProvider({ children }) {
 
   const checkSession = async () => {
     try {
+      // Safety check for missing project ID
+      if (!import.meta.env.VITE_APPWRITE_PROJECT_ID) {
+        console.error("Missing Appwrite Project ID in Environment Variables!");
+        setLoading(false);
+        return;
+      }
+
       const session = await account.get();
       setUser(session);
       
+      // Safety check for missing collection ID
+      const profileCollection = db.collections.profiles;
+      if (!profileCollection) {
+        console.error("Missing Profile Collection ID!");
+        setLoading(false);
+        return;
+      }
+
       const { documents } = await databases.listDocuments(
         db.id,
-        db.collections.profiles,
+        profileCollection,
         [Query.equal("userId", session.$id)]
       );
 
@@ -27,7 +42,7 @@ export function UserProvider({ children }) {
         setProfile(documents[0]);
       }
     } catch (err) {
-      console.log('No active session');
+      console.log('Session check failed or no active session');
       setUser(null);
       setProfile(null);
     } finally {
