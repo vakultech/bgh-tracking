@@ -357,8 +357,8 @@ export default function ChatBox() {
                       {contact.isOnline && <span className="online-indicator" />}
                     </div>
                     <div className="thread-info">
-                      <div className="thread-name">
-                        <span>{contact.fullName || 'User'}</span>
+                      <div className="thread-name-row">
+                        <span className="thread-name-text">{contact.fullName || 'User'}</span>
                         {unreadMap[contact.userId] > 0 && (
                           <span className="unread-dot">{unreadMap[contact.userId]}</span>
                         )}
@@ -501,14 +501,15 @@ export default function ChatBox() {
           background: #22c55e; border: 2px solid white; border-radius: 50%;
         }
 
-        .thread-info { flex: 1; text-align: left; }
-        .thread-name { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
-        .thread-name span { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
+        .thread-info { flex: 1; text-align: left; min-width: 0; }
+        .thread-name-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; width: 100%; }
+        .thread-name-text { font-weight: 700; color: var(--primary); font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 0.5rem; }
         .unread-dot { 
           background: #0ea5e9; color: white; font-size: 0.75rem; font-weight: 800; 
-          min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; 
+          min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; 
           display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3);
+          box-shadow: 0 4px 10px rgba(14, 165, 233, 0.4);
+          flex-shrink: 0;
         }
         .header-count { font-size: 1rem; color: var(--accent); opacity: 0.8; font-weight: 600; }
         .thread-role { font-size: 0.75rem; color: #64748b; text-transform: uppercase; font-weight: 600; }
