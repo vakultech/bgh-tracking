@@ -227,10 +227,31 @@ export default function AccountManagement() {
                       <span className="text-primary fw-bold">Linked Supplier Account</span>
                     </div>
                   )}
+                  <div className="user-detail-row status-indicators">
+                    {(() => {
+                      const lastActive = user.lastActive ? new Date(user.lastActive) : null;
+                      const isOnline = user.isOnline && lastActive && (new Date() - lastActive < 300000); // 5 minutes threshold
+                      
+                      return isOnline ? (
+                        <div className="online-badge">
+                          <span className="pulse-dot"></span>
+                          <span>Online Now</span>
+                        </div>
+                      ) : (
+                        <div className="offline-badge">
+                          <span>Offline</span>
+                          <span className="last-seen">
+                            {lastActive ? `Last active: ${lastActive.toLocaleDateString()} ${lastActive.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Never active'}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  
                   <div className="user-detail-row">
                     {user.status === 'ACTIVE' ? <UserCheck size={14} className="text-success" /> : <UserMinus size={14} className="text-danger" />}
                     <span className={user.status === 'ACTIVE' ? 'text-success fw-bold' : 'text-danger'}>
-                      {user.status || 'PENDING'}
+                      {user.status || 'PENDING'} Account
                     </span>
                   </div>
                 </div>
@@ -421,6 +442,21 @@ export default function AccountManagement() {
         .modal-footer { padding: 1.5rem 2rem; background: var(--bg); border-top: 1px solid var(--border); display: flex; gap: 1rem; justify-content: flex-end; }
         .btn-ghost { padding: 0.75rem 1.5rem; font-weight: 700; color: var(--text-muted); }
         .btn-primary { padding: 0.75rem 2rem; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2); }
+        .status-indicators { margin-bottom: 0.25rem; }
+        .online-badge { display: flex; align-items: center; gap: 0.5rem; color: #059669; font-size: 0.8rem; font-weight: 800; background: #ecfdf5; padding: 0.25rem 0.75rem; border-radius: 20px; width: fit-content; }
+        .offline-badge { display: flex; flex-direction: column; gap: 0.1rem; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; background: #f1f5f9; padding: 0.4rem 0.75rem; border-radius: 12px; width: 100%; }
+        .last-seen { font-size: 0.7rem; opacity: 0.8; font-weight: 500; }
+
+        .pulse-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; position: relative; }
+        .pulse-dot::after {
+          content: ''; position: absolute; inset: 0; background: #10b981; border-radius: 50%;
+          animation: pulse-ring 1.5s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+        }
+
+        @keyframes pulse-ring {
+          0% { transform: scale(0.33); opacity: 1; }
+          80%, 100% { opacity: 0; }
+        }
       `}</style>
     </DashboardLayout>
   );

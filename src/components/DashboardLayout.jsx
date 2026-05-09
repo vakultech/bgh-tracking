@@ -61,7 +61,10 @@ export default function DashboardLayout({ children, role }) {
           [Query.equal("userId", user.$id)]
         );
         if (documents.length > 0) {
-          setProfile(documents[0]);
+          const p = documents[0];
+          setProfile(p);
+          // Initial online update
+          updateOnlineStatus(p.$id, true);
         }
       }
     } catch (err) {
@@ -69,8 +72,33 @@ export default function DashboardLayout({ children, role }) {
     }
   };
 
+  const updateOnlineStatus = async (profileId, isOnline) => {
+    try {
+      await databases.updateDocument(db.id, db.collections.profiles, profileId, {
+        lastActive: new Date().toISOString(),
+        isOnline: isOnline
+      });
+    } catch (err) {
+      console.error("Status update failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!profile) return;
+
+    // Heartbeat every 3 minutes
+    const interval = setInterval(() => {
+      updateOnlineStatus(profile.$id, true);
+    }, 180000); 
+
+    return () => clearInterval(interval);
+  }, [profile]);
+
   const handleLogout = async () => {
     try {
+      if (profile) {
+        await updateOnlineStatus(profile.$id, false);
+      }
       await logActivity('Logout', `User logged out successfully`);
       await account.deleteSession('current');
       navigate('/');
