@@ -172,7 +172,7 @@ export default function ChatBox() {
       setLoading(true);
       const userRole = profile?.role || 'user';
 
-      if (userRole !== 'admin' && userRole !== 'supply_dept') {
+      if (userRole !== 'admin') {
         alert("Action Denied: You do not have permission to delete messages.");
         setLoading(false);
         return;
@@ -423,9 +423,11 @@ export default function ChatBox() {
                       </div>
                     </div>
                     <div className="chat-actions">
-                      <button className="delete-chat-btn" onClick={clearConversation}>
-                        Delete Message
-                      </button>
+                      {profile?.role === 'admin' && (
+                        <button className="delete-chat-btn" onClick={clearConversation}>
+                          Delete Message
+                        </button>
+                      )}
                     </div>
                   </div>
 
