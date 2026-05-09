@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { account, databases, db, Query } from '../lib/appwrite';
 import NotificationBell from './NotificationBell';
+import ChatBox from './ChatBox';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logActivity } from '../lib/logger';
 
@@ -249,6 +250,7 @@ export default function DashboardLayout({ children, role }) {
         <main className="scroll-area">
           {children}
         </main>
+        <ChatBox />
       </div>
 
       <style jsx>{`

@@ -18,6 +18,7 @@ export const db = {
         contracts: import.meta.env.VITE_APPWRITE_COLLECTION_CONTRACTS,
         logs: import.meta.env.VITE_APPWRITE_COLLECTION_LOGS,
         notifications: import.meta.env.VITE_APPWRITE_COLLECTION_NOTIFICATIONS || 'notifications',
+        messages: import.meta.env.VITE_APPWRITE_COLLECTION_MESSAGES || 'messages',
     }
 };
 
