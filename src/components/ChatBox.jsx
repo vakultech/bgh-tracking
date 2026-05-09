@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, X, User, Minus, ChevronRight } from 'lucide-react';
+import { MessageSquare, Send, X, User, ArrowLeft, ChevronRight } from 'lucide-react';
 import { databases, db, ID, Query, client, account } from '../lib/appwrite';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -150,7 +150,7 @@ export default function ChatBox() {
               <div className="header-user">
                 {selectedContact ? (
                   <button className="back-btn" onClick={() => setSelectedContact(null)}>
-                    <Minus size={20} />
+                    <ArrowLeft size={20} />
                   </button>
                 ) : (
                   <div className="chat-avatar">
@@ -158,9 +158,9 @@ export default function ChatBox() {
                   </div>
                 )}
                 <div>
-                  <h4>{selectedContact ? selectedContact.fullName : 'Select Contact'}</h4>
+                  <h4>{selectedContact ? selectedContact.fullName : 'Direct Messages'}</h4>
                   <p className="online-status">
-                    {selectedContact ? selectedContact.role.replace('_', ' ') : 'Messenger'}
+                    {selectedContact ? selectedContact.role.replace('_', ' ') : 'Select a contact to chat'}
                   </p>
                 </div>
               </div>
@@ -214,22 +214,28 @@ export default function ChatBox() {
                 {contacts.length === 0 ? (
                   <div className="chat-empty"><p>No other users found.</p></div>
                 ) : (
-                  contacts.map(contact => (
-                    <button 
-                      key={contact.$id} 
-                      className="contact-item"
-                      onClick={() => handleSelectContact(contact)}
-                    >
-                      <div className={`contact-avatar-sm ${contact.role}`}>
-                        {contact.fullName?.charAt(0)}
-                      </div>
-                      <div className="contact-info">
-                        <span className="contact-name">{contact.fullName}</span>
-                        <span className="contact-role">{contact.role.replace('_', ' ')}</span>
-                      </div>
-                      <ChevronRight size={16} className="contact-arrow" />
-                    </button>
-                  ))
+                  contacts.map(contact => {
+                    const lastActive = contact.lastActive ? new Date(contact.lastActive) : null;
+                    const isOnline = contact.isOnline && lastActive && (new Date() - lastActive < 300000);
+                    
+                    return (
+                      <button 
+                        key={contact.$id} 
+                        className="contact-item"
+                        onClick={() => handleSelectContact(contact)}
+                      >
+                        <div className={`contact-avatar-sm ${contact.role}`}>
+                          {contact.fullName?.charAt(0)}
+                          <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
+                        </div>
+                        <div className="contact-info">
+                          <span className="contact-name">{contact.fullName}</span>
+                          <span className="contact-role">{contact.role.replace('_', ' ')}</span>
+                        </div>
+                        <ChevronRight size={16} className="contact-arrow" />
+                      </button>
+                    );
+                  })
                 )}
               </div>
             )}
@@ -352,10 +358,19 @@ export default function ChatBox() {
         .contact-avatar-sm { 
           width: 40px; height: 40px; border-radius: 12px; background: #64748b; color: white;
           display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;
+          position: relative;
         }
         .contact-avatar-sm.admin { background: #0f172a; }
         .contact-avatar-sm.supply_dept { background: #0d9488; }
         .contact-avatar-sm.supplier { background: #7c3aed; }
+
+        .status-dot {
+          position: absolute; bottom: -2px; right: -2px;
+          width: 12px; height: 12px; border-radius: 50%;
+          border: 2px solid white;
+        }
+        .status-dot.online { background: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
+        .status-dot.offline { background: #ef4444; }
 
         .contact-info { flex: 1; text-align: left; display: flex; flex-direction: column; }
         .contact-name { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
