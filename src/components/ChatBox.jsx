@@ -393,8 +393,11 @@ export default function ChatBox() {
                     <div className="thread-info">
                       <div className="thread-name-row">
                         <span className="thread-name-text">{contact.fullName || 'User'}</span>
-                        {unreadMap[contact.userId] > 0 && (
-                          <span className="unread-dot">{unreadMap[contact.userId]}</span>
+                        {/* We check multiple possible ID keys to ensure the dot shows up */}
+                        {(unreadMap[contact.userId] > 0 || unreadMap[contact.$id] > 0) && (
+                          <span className="unread-dot">
+                            {(unreadMap[contact.userId] || 0) + (unreadMap[contact.$id] || 0)}
+                          </span>
                         )}
                       </div>
                       <p className="thread-role">{contact.role?.replace('_', ' ')}</p>
