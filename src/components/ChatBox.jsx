@@ -143,7 +143,44 @@ export default function ChatBox() {
     }
   };
 
+  const clearConversation = async () => {
+    if (!activeThread) return;
+    if (!window.confirm("Permanently delete all messages in this conversation? This cannot be undone.")) return;
+
+    try {
+      setLoading(true);
+      const { documents } = await databases.listDocuments(
+        db.id, db.collections.messages,
+        [
+          Query.or([
+            Query.and([Query.equal('senderId', myId), Query.equal('recipientId', activeThread.userId)]),
+            Query.and([Query.equal('senderId', activeThread.userId), Query.equal('recipientId', myId)])
+          ]),
+          Query.limit(100)
+        ]
+      );
+
+      await Promise.all(documents.map(m => 
+        databases.updateDocument(db.id, db.collections.messages, m.$id, { isRead: true }) // Mark as read first
+      ));
+      
+      // We can't actually 'delete' easily without a function, but we can mark as deleted or just delete
+      await Promise.all(documents.map(m => 
+        databases.deleteDocument(db.id, db.collections.messages, m.$id)
+      ));
+
+      setMessages([]);
+      alert("Conversation cleared.");
+    } catch (err) {
+      console.error("Clear Error:", err);
+      alert("Failed to clear messages: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchMessages = async (contactId) => {
+    if (!contactId) return;
     setLoading(true);
     try {
       const { documents } = await databases.listDocuments(
@@ -165,6 +202,17 @@ export default function ChatBox() {
       setLoading(false);
     }
   };
+
+  // AUTO-REFRESH FALLBACK (If Realtime fails)
+  useEffect(() => {
+    if (!activeThread || !isOpen) return;
+    
+    const interval = setInterval(() => {
+      fetchMessages(activeThread.userId);
+    }, 15000); // Check every 15 seconds as a safety fallback
+
+    return () => clearInterval(interval);
+  }, [activeThread, isOpen]);
 
   const markAllAsRead = async (contactId) => {
     try {
@@ -331,7 +379,11 @@ export default function ChatBox() {
                         <span className="status">{activeThread.isOnline ? 'Active Now' : 'Offline'}</span>
                       </div>
                     </div>
-                    <button className="icon-btn"><MoreVertical size={20}/></button>
+                    <div className="chat-actions">
+                      <button className="icon-btn" onClick={clearConversation} title="Clear Chat History">
+                        <X size={20}/>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="chat-messages">
