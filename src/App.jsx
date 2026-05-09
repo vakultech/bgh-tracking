@@ -13,6 +13,7 @@ import SupplierDashboard from './pages/Supplier/SupplierDashboard';
 import SupplierContracts from './pages/Supplier/SupplierContracts';
 
 import ProfilePage from './pages/ProfilePage';
+import PMDPage from './pages/PMDPage';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <ProtectedRoute role="admin">
             <Routes>
               <Route index element={<AdminDashboard />} />
+              <Route path="pmd" element={<PMDPage role="admin" />} />
               <Route path="accounts" element={<AccountManagement />} />
               <Route path="logs" element={<AdminLogs />} />
               <Route path="settings" element={<SettingsPage />} />
@@ -40,6 +42,7 @@ function App() {
           <ProtectedRoute role="supply_dept">
             <Routes>
               <Route index element={<SupplyDashboard />} />
+              <Route path="pmd" element={<PMDPage role="supply_dept" />} />
               <Route path="suppliers" element={<SuppliersPage />} />
               <Route path="contracts" element={<ContractsPage />} />
               <Route path="profile" element={<ProfilePage />} />

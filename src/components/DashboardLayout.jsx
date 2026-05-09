@@ -11,7 +11,8 @@ import {
   Settings,
   Megaphone,
   UserCircle,
-  FolderOpen
+  FolderOpen,
+  BarChart3
 } from 'lucide-react';
 import { account, databases, db, Query } from '../lib/appwrite';
 import { useUser } from '../UserContext';
@@ -65,6 +66,7 @@ export default function DashboardLayout({ children, role }) {
   const menuItems = {
     admin: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+      { name: 'PMD', icon: BarChart3, path: '/admin/pmd' },
       { 
         name: 'Project', 
         icon: FileText, 
@@ -88,6 +90,7 @@ export default function DashboardLayout({ children, role }) {
     ],
     supply_dept: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/supply-dept' },
+      { name: 'PMD', icon: BarChart3, path: '/supply-dept/pmd' },
       { 
         name: 'Project', 
         icon: FileText, 
