@@ -132,10 +132,12 @@ export default function ContractsPage() {
       setFetchError(null);
 
       // Safety check for collection IDs
-      if (!db.collections.contracts || !db.collections.suppliers) {
-        throw new Error("Database Configuration Missing: Contracts or Suppliers collection ID is not set.");
-      }
+      if (!db.id) throw new Error("Database ID (VITE_APPWRITE_DATABASE_ID) is not set.");
+      if (!db.collections.contracts) throw new Error("Collection ID for 'contracts' is not set.");
+      if (!db.collections.suppliers) throw new Error("Collection ID for 'suppliers' is not set.");
 
+      console.log("Attempting fetch from DB:", db.id);
+      
       const [contractsRes, suppliersRes] = await Promise.all([
         databases.listDocuments(db.id, db.collections.contracts, [Query.orderDesc('$createdAt')]),
         databases.listDocuments(db.id, db.collections.suppliers, [Query.equal('status', 'active')])
