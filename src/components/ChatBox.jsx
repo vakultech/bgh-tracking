@@ -9,7 +9,7 @@ export default function ChatBox() {
   const [selectedContact, setSelectedContact] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [unreadSenders, setUnreadSenders] = useState([]);
+  const [unreadSenders, setUnreadSenders] = useState({});
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -31,20 +31,19 @@ export default function ChatBox() {
           if (msg.recipientId === myId) {
             // If chat is closed OR I'm talking to someone else
             if (!isOpen || selectedContact?.userId !== msg.senderId) {
-              setUnreadSenders(prev => [...new Set([...prev, msg.senderId])]);
+              setUnreadSenders(prev => ({
+                ...prev,
+                [msg.senderId]: (prev[msg.senderId] || 0) + 1
+              }));
               setHasNewMessage(true);
-              
-              // Play a subtle notification sound if possible
               try { new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play(); } catch(e) {}
             }
 
-            // If I'm currently talking to this person, add to messages
             if (selectedContact?.userId === msg.senderId) {
               setMessages((prev) => [...prev, msg]);
             }
           }
 
-          // If I am the sender, add to my own messages list if conversation is open
           if (msg.senderId === myId && selectedContact?.userId === msg.recipientId) {
             setMessages((prev) => [...prev, msg]);
           }
@@ -69,21 +68,24 @@ export default function ChatBox() {
       );
       if (profiles.length > 0) setProfile(profiles[0]);
 
-      // Fetch all other users
       const { documents: allProfiles } = await databases.listDocuments(
         db.id, db.collections.profiles, [Query.limit(100)]
       );
       setContacts(allProfiles.filter(p => p.userId !== user.$id));
 
-      // Initial check for unread messages across all contacts
       const { documents: unreadMessages } = await databases.listDocuments(
         db.id,
         db.collections.messages,
         [Query.equal('recipientId', user.$id), Query.equal('isRead', false)]
       );
-      const uniqueUnreadSenders = [...new Set(unreadMessages.map(m => m.senderId))];
-      setUnreadSenders(uniqueUnreadSenders);
-      if (uniqueUnreadSenders.length > 0) setHasNewMessage(true);
+      
+      const counts = unreadMessages.reduce((acc, msg) => {
+        acc[msg.senderId] = (acc[msg.senderId] || 0) + 1;
+        return acc;
+      }, {});
+      
+      setUnreadSenders(counts);
+      if (Object.keys(counts).length > 0) setHasNewMessage(true);
 
     } catch (err) {
       console.error("Chat error:", err);
@@ -138,8 +140,12 @@ export default function ChatBox() {
 
   const handleSelectContact = (contact) => {
     setSelectedContact(contact);
-    setUnreadSenders(prev => prev.filter(id => id !== contact.userId));
-    if (unreadSenders.length <= 1) setHasNewMessage(false);
+    setUnreadSenders(prev => {
+      const newCounts = { ...prev };
+      delete newCounts[contact.userId];
+      if (Object.keys(newCounts).length === 0) setHasNewMessage(false);
+      return newCounts;
+    });
     fetchConversation(contact);
   };
 
@@ -278,12 +284,12 @@ export default function ChatBox() {
                   contacts.map(contact => {
                     const lastActive = contact.lastActive ? new Date(contact.lastActive) : null;
                     const isOnline = contact.isOnline && lastActive && (new Date() - lastActive < 300000);
-                    const hasUnread = unreadSenders.includes(contact.userId);
+                    const unreadCount = unreadSenders[contact.userId] || 0;
                     
                     return (
                       <button 
                         key={contact.$id} 
-                        className={`contact-item ${hasUnread ? 'has-unread' : ''}`}
+                        className={`contact-item ${unreadCount > 0 ? 'has-unread' : ''}`}
                         onClick={() => handleSelectContact(contact)}
                       >
                         <div className={`contact-avatar-sm ${contact.role}`}>
@@ -293,7 +299,7 @@ export default function ChatBox() {
                         <div className="contact-info">
                           <div className="contact-name-row">
                             <span className="contact-name">{contact.fullName}</span>
-                            {hasUnread && <span className="unread-pill">NEW</span>}
+                            {unreadCount > 0 && <span className="unread-pill">{unreadCount}</span>}
                           </div>
                           <span className="contact-role">{contact.role.replace('_', ' ')}</span>
                         </div>
