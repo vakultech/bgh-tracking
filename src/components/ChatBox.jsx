@@ -9,6 +9,8 @@ export default function ChatBox() {
   const [selectedContact, setSelectedContact] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [unreadSenders, setUnreadSenders] = useState([]);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -23,11 +25,26 @@ export default function ChatBox() {
       (response) => {
         if (response.events.includes('databases.*.collections.*.documents.*.create')) {
           const msg = response.payload;
-          // Only add if it belongs to the current open conversation
-          if (
-            (msg.senderId === currentUser?.$id && msg.recipientId === selectedContact?.userId) ||
-            (msg.senderId === selectedContact?.userId && msg.recipientId === currentUser?.$id)
-          ) {
+          
+          // Only notify if the message is for me
+          if (msg.recipientId === currentUser?.$id) {
+            // If chat is closed OR I'm talking to someone else
+            if (!isOpen || selectedContact?.userId !== msg.senderId) {
+              setUnreadSenders(prev => [...new Set([...prev, msg.senderId])]);
+              setHasNewMessage(true);
+              
+              // Play a subtle notification sound if possible
+              try { new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play(); } catch(e) {}
+            }
+
+            // If I'm currently talking to this person, add to messages
+            if (selectedContact?.userId === msg.senderId) {
+              setMessages((prev) => [...prev, msg]);
+            }
+          }
+
+          // If I am the sender, add to my own messages list if conversation is open
+          if (msg.senderId === currentUser?.$id && selectedContact?.userId === msg.recipientId) {
             setMessages((prev) => [...prev, msg]);
           }
         }
@@ -35,7 +52,7 @@ export default function ChatBox() {
     );
 
     return () => unsubscribe();
-  }, [selectedContact, currentUser]);
+  }, [selectedContact, currentUser, isOpen]);
 
   useEffect(() => {
     scrollToBottom();
@@ -86,6 +103,9 @@ export default function ChatBox() {
 
   const handleSelectContact = (contact) => {
     setSelectedContact(contact);
+    // Remove from unread list
+    setUnreadSenders(prev => prev.filter(id => id !== contact.userId));
+    if (unreadSenders.length <= 1) setHasNewMessage(false);
     fetchConversation(contact);
   };
 
@@ -129,9 +149,13 @@ export default function ChatBox() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           className="chat-toggle-btn"
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            setIsOpen(true);
+            setHasNewMessage(false);
+          }}
         >
           <MessageSquare size={24} />
+          {hasNewMessage && <span className="notification-badge-pulse"></span>}
           <span className="online-indicator"></span>
         </motion.button>
       )}
@@ -216,11 +240,12 @@ export default function ChatBox() {
                   contacts.map(contact => {
                     const lastActive = contact.lastActive ? new Date(contact.lastActive) : null;
                     const isOnline = contact.isOnline && lastActive && (new Date() - lastActive < 300000);
+                    const hasUnread = unreadSenders.includes(contact.userId);
                     
                     return (
                       <button 
                         key={contact.$id} 
-                        className="contact-item"
+                        className={`contact-item ${hasUnread ? 'has-unread' : ''}`}
                         onClick={() => handleSelectContact(contact)}
                       >
                         <div className={`contact-avatar-sm ${contact.role}`}>
@@ -228,7 +253,10 @@ export default function ChatBox() {
                           <span className={`status-dot ${isOnline ? 'online' : 'offline'}`}></span>
                         </div>
                         <div className="contact-info">
-                          <span className="contact-name">{contact.fullName}</span>
+                          <div className="contact-name-row">
+                            <span className="contact-name">{contact.fullName}</span>
+                            {hasUnread && <span className="unread-pill">NEW</span>}
+                          </div>
                           <span className="contact-role">{contact.role.replace('_', ' ')}</span>
                         </div>
                         <ChevronRight size={16} className="contact-arrow" />
@@ -370,6 +398,27 @@ export default function ChatBox() {
         }
         .status-dot.online { background: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
         .status-dot.offline { background: #ef4444; }
+
+        .notification-badge-pulse {
+          position: absolute; top: -5px; right: -5px;
+          width: 18px; height: 18px; background: #ef4444;
+          border-radius: 50%; border: 2px solid white;
+          animation: badge-pulse 1.5s infinite;
+        }
+
+        @keyframes badge-pulse {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+          70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .unread-pill {
+          background: #ef4444; color: white; font-size: 0.6rem; 
+          padding: 2px 6px; border-radius: 10px; font-weight: 900;
+          letter-spacing: 0.05em;
+        }
+        .contact-name-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+        .contact-item.has-unread { background: rgba(239, 68, 68, 0.03); }
 
         .contact-info { flex: 1; text-align: left; display: flex; flex-direction: column; }
         .contact-name { font-weight: 700; color: var(--primary); font-size: 0.95rem; }
