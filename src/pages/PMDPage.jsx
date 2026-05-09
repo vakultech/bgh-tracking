@@ -16,7 +16,7 @@ import {
   Target,
   ArrowUpRight
 } from 'lucide-react';
-import { databases, db, Query } from '../lib/appwrite';
+import { account, databases, db, Query } from '../lib/appwrite';
 import { format, subMonths, isAfter, parseISO, differenceInDays } from 'date-fns';
 
 export default function PMDPage({ role }) {
@@ -45,8 +45,26 @@ export default function PMDPage({ role }) {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
+      const user = await account.get();
+      
+      // 1. Resolve User Identity
+      let targetSupplierId = null;
+      if (role === 'supplier') {
+        const { documents: profiles } = await databases.listDocuments(
+          db.id, db.collections.profiles, [Query.equal('userId', user.$id)]
+        );
+        if (profiles.length > 0) {
+          const { documents: sDocs } = await databases.listDocuments(
+            db.id, db.collections.suppliers, [Query.equal('email', profiles[0].email)]
+          );
+          if (sDocs.length > 0) targetSupplierId = sDocs[0].$id;
+        }
+      }
+
+      // 2. Fetch Data with Filter
+      const queries = targetSupplierId ? [Query.equal('supplier_id', targetSupplierId)] : [];
       const [contractsRes, suppliersRes] = await Promise.all([
-        databases.listDocuments(db.id, db.collections.contracts, [Query.limit(100)]),
+        databases.listDocuments(db.id, db.collections.contracts, [...queries, Query.limit(100)]),
         databases.listDocuments(db.id, db.collections.suppliers, [Query.limit(100)])
       ]);
 

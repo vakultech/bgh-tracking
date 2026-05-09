@@ -57,6 +57,7 @@ function App() {
           <ProtectedRoute role="supplier">
             <Routes>
               <Route index element={<SupplierDashboard />} />
+              <Route path="pmd" element={<PMDPage role="supplier" />} />
               <Route path="contracts" element={<SupplierContracts />} />
               <Route path="profile" element={<ProfilePage />} />
             </Routes>

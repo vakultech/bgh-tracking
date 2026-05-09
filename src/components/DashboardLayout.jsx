@@ -104,6 +104,7 @@ export default function DashboardLayout({ children, role }) {
     ],
     supplier: [
       { name: 'Dashboard', icon: LayoutDashboard, path: '/supplier' },
+      { name: 'PMD', icon: BarChart3, path: '/supplier/pmd' },
       { name: 'My Projects', icon: FolderOpen, path: '/supplier/contracts' },
       { name: 'Account', icon: UserCircle, path: '/supplier/profile' },
     ]
