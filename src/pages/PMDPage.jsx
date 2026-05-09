@@ -14,7 +14,9 @@ import {
   Calendar,
   Zap,
   Target,
-  ArrowUpRight
+  ArrowUpRight,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { account, databases, db, Query } from '../lib/appwrite';
 import { format, subMonths, isAfter, parseISO, differenceInDays } from 'date-fns';
@@ -37,9 +39,19 @@ export default function PMDPage({ role }) {
   });
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('6months');
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
+    
+    // LIVE AUTO-REFRESH: Every 30 seconds
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchAnalytics();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [timeRange]);
 
   const fetchAnalytics = async () => {
@@ -149,7 +161,14 @@ export default function PMDPage({ role }) {
 
   return (
     <DashboardLayout role={role}>
-      <div className="pmd-container fade-in">
+      <div className={`pmd-container fade-in ${isMaximized ? 'pmd-maximized' : ''}`}>
+        {isMaximized && (
+          <button className="restore-btn" onClick={() => setIsMaximized(false)}>
+            <Minimize2 size={20} />
+            <span>Exit TV Mode</span>
+          </button>
+        )}
+
         <header className="pmd-header">
           <div className="title-section">
             <div className="pmd-badge">
@@ -169,6 +188,10 @@ export default function PMDPage({ role }) {
                 <option value="year">Full Year</option>
               </select>
             </div>
+            <button className="maximize-btn" onClick={() => setIsMaximized(true)} title="Maximize for TV">
+              <Maximize2 size={18} />
+              <span>TV Mode</span>
+            </button>
             <button className="export-btn" onClick={() => window.print()}>
               <Download size={18} />
               <span>Export PDF</span>
@@ -294,12 +317,34 @@ export default function PMDPage({ role }) {
         }
         .time-selector select { border: none; font-weight: 700; color: #0f172a; outline: none; }
         
+        .maximize-btn {
+          display: flex; align-items: center; gap: 0.5rem; 
+          background: #3b82f6; color: white; padding: 0.75rem 1.25rem; 
+          border-radius: 12px; font-weight: 700; transition: all 0.2s;
+        }
+        .maximize-btn:hover { background: #2563eb; transform: translateY(-1px); }
+
         .export-btn { 
           display: flex; align-items: center; gap: 0.5rem; 
           background: #0f172a; color: white; padding: 0.75rem 1.25rem; 
           border-radius: 12px; font-weight: 700; transition: all 0.2s;
         }
         .export-btn:hover { background: #1e293b; transform: translateY(-1px); }
+
+        .pmd-maximized {
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          width: 100vw; height: 100vh; background: #f8fafc;
+          z-index: 10000; padding: 3rem; overflow-y: auto;
+        }
+        .restore-btn {
+          position: fixed; top: 1.5rem; right: 1.5rem;
+          background: #ef4444; color: white; border: none;
+          padding: 0.75rem 1.5rem; border-radius: 12px;
+          display: flex; align-items: center; gap: 0.5rem;
+          font-weight: 800; z-index: 10001; cursor: pointer;
+          box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+        }
+        .restore-btn:hover { transform: scale(1.05); }
 
         .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2.5rem; }
         
