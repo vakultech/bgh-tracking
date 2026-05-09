@@ -77,7 +77,11 @@ export default function ChatBox() {
   }, [selectedContact, currentUser, profile, isOpen]);
 
   useEffect(() => {
-    scrollToBottom();
+    // Scroll to bottom whenever messages or view state changes
+    if (messages.length > 0) {
+      const timer = setTimeout(() => scrollToBottom(isOpen ? "auto" : "smooth"), 100);
+      return () => clearTimeout(timer);
+    }
   }, [messages, isOpen, selectedContact]);
 
   const fetchInitialData = async () => {
@@ -169,8 +173,10 @@ export default function ChatBox() {
     fetchConversation(contact);
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (behavior = "smooth") => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
   };
 
   const handleSendMessage = async (e) => {
