@@ -410,7 +410,7 @@ export default function ChatBox() {
             </div>
 
             {/* MAIN: CHAT AREA */}
-            <div className={`messenger-chat ${!activeThread ? 'hide-mobile' : ''}`}>
+            <div className={`messenger-chat ${activeThread ? 'show-mobile' : 'hide-mobile'}`}>
               {activeThread ? (
                 <>
                   <div className="chat-header">
@@ -600,20 +600,21 @@ export default function ChatBox() {
         .empty-icon { width: 100px; height: 100px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; }
         
         .back-btn { display: none; }
+        .back-btn { display: none; }
         @media (max-width: 768px) {
           .messenger-window { 
             width: 100vw; height: 100vh; 
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: 0; z-index: 9999;
+            border-radius: 0; z-index: 9999; display: flex; flex-direction: row;
           }
-          .messenger-sidebar { width: 100%; border-right: none; height: 100%; }
-          .messenger-sidebar.hide-mobile { display: none; }
+          .messenger-sidebar { width: 100%; border-right: none; height: 100%; display: flex; flex-direction: column; }
+          .messenger-sidebar.hide-mobile { display: none !important; }
           
           .messenger-chat { 
             width: 100%; position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
-            z-index: 100; display: none; background: white;
+            z-index: 100; display: none; background: white; flex-direction: column;
           }
-          .messenger-chat.show-mobile { display: flex; }
+          .messenger-chat.show-mobile { display: flex !important; }
           
           .back-btn { display: flex; border: none; background: transparent; color: var(--primary); align-items: center; justify-content: center; padding: 0.5rem; }
           .close-btn-mobile { border: none; background: transparent; display: flex; }
