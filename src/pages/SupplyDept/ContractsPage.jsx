@@ -44,7 +44,9 @@ const ContractCard = ({ contract, suppliers, storage, safeFormat, onDetails, onC
       </div>
 
       <div className="contract-body">
-        <h3>{contract.project_name}</h3>
+        <div className="project-title-row">
+          <h3>{contract.project_name}</h3>
+        </div>
         <div className="supplier-link">
           <div className="avatar-xs">
             {suppliers.find(s => s.$id === contract.supplier_id)?.name.charAt(0) || 'S'}
@@ -643,7 +645,20 @@ export default function ContractsPage() {
         .status-badge.in-transit { background: #eff6ff; color: #1e40af; }
         
         .contract-body { flex: 1; }
-        .contract-body h3 { font-size: 1.25rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem; line-height: 1.3; }
+        .project-title-row { 
+          background: var(--primary); 
+          margin: 0 -1.5rem 1.5rem -1.5rem; 
+          padding: 1rem 1.5rem;
+          box-shadow: inset 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .project-title-row h3 { 
+          font-size: 1.15rem; 
+          font-weight: 800; 
+          color: white !important; 
+          margin: 0 !important; 
+          line-height: 1.3;
+          letter-spacing: -0.01em;
+        }
         .supplier-link { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: var(--text-muted); }
         .avatar-xs { width: 28px; height: 28px; background: var(--primary-light); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
         
