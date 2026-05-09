@@ -14,6 +14,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { account, databases, db, Query } from '../lib/appwrite';
+import { useUser } from '../UserContext';
 import NotificationBell from './NotificationBell';
 import ChatBox from './ChatBox';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,13 +23,12 @@ import { logActivity } from '../lib/logger';
 export default function DashboardLayout({ children, role }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile, logout, loading: userLoading } = useUser();
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
-  const [profile, setProfile] = useState(null);
   const [announcement, setAnnouncement] = useState('Welcome to BGH Tracking System - Modern Clinical Management Portal');
 
   useEffect(() => {
-    fetchProfile();
     const saved = localStorage.getItem('system_announcement');
     if (saved) setAnnouncement(saved);
 
@@ -52,56 +52,10 @@ export default function DashboardLayout({ children, role }) {
     };
   }, []);
 
-  const fetchProfile = async () => {
-    try {
-      const user = await account.get();
-      if (user) {
-        const { documents } = await databases.listDocuments(
-          db.id,
-          db.collections.profiles,
-          [Query.equal("userId", user.$id)]
-        );
-        if (documents.length > 0) {
-          const p = documents[0];
-          setProfile(p);
-          // Initial online update
-          updateOnlineStatus(p.$id, true);
-        }
-      }
-    } catch (err) {
-      console.log('Error fetching profile');
-    }
-  };
-
-  const updateOnlineStatus = async (profileId, isOnline) => {
-    try {
-      await databases.updateDocument(db.id, db.collections.profiles, profileId, {
-        lastActive: new Date().toISOString(),
-        isOnline: isOnline
-      });
-    } catch (err) {
-      console.error("Status update failed:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (!profile) return;
-
-    // Heartbeat every 3 minutes
-    const interval = setInterval(() => {
-      updateOnlineStatus(profile.$id, true);
-    }, 180000); 
-
-    return () => clearInterval(interval);
-  }, [profile]);
-
   const handleLogout = async () => {
     try {
-      if (profile) {
-        await updateOnlineStatus(profile.$id, false);
-      }
       await logActivity('Logout', `User logged out successfully`);
-      await account.deleteSession('current');
+      await logout();
       navigate('/');
     } catch (err) {
       console.error(err);
@@ -152,7 +106,9 @@ export default function DashboardLayout({ children, role }) {
     ]
   };
 
-  const currentRole = role || profile?.role || 'supplier';
+  // Fix: If actual user is Admin, always show Admin menu even on Supply pages
+  const actualRole = profile?.role || 'supplier';
+  const currentRole = actualRole === 'admin' ? 'admin' : (role || actualRole);
   const currentMenu = menuItems[currentRole] || [];
 
   return (
